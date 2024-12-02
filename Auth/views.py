@@ -85,6 +85,7 @@ def LoginApi(request):
         request.session['is_login']=True
         request.session['username']=username
         request.session['role']=str(login_user.role)
+        request.session['auth_id']=login_user.id
         return http.JsonResponse(result)
     
 @csrf_exempt

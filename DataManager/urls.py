@@ -6,4 +6,5 @@ app_name='DataManager'
 
 urlpatterns = [
     path('',views.IndexPage,name='index'),
+    path('api/basicinfo',views.BasicInfo,name='basicinfo')
 ]

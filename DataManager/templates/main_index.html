@@ -3,77 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logout Page</title>
+    <title>基本信息页面</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            margin: 20px;
         }
-        .logout-container {
-            text-align: center;
-            background-color: #fff;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+        .info-window {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 20px;
         }
-        .logout-button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #d9534f;
-            color: #fff;
-            transition: background-color 0.3s;
-        }
-        .logout-button:hover {
-            background-color: #c9302c;
+        .error {
+            color: red;
         }
     </style>
 </head>
 <body>
-    <div class="logout-container">
-        <h2>Logout</h2>
-        <button class="logout-button" id="logoutButton">Logout</button>
+    <div class="info-window" id="infoWindow">
+        <p id="loading">加载中...</p>
     </div>
+    <button id="logoutButton">登出</button>
 
     <script>
-        document.getElementById('logoutButton').addEventListener('click', function() {
-            var curWwwPath=window.document.location.href;
+        document.addEventListener('DOMContentLoaded', () => {
+            const infoWindow = document.getElementById('infoWindow');
+            const loadingText = document.getElementById('loading');
 
-                    //获取主机地址之后的目录，如： myproj/view/my.jsp
-
-                    var pathName=window.document.location.pathname;
-
-                    var pos=curWwwPath.indexOf(pathName);
-
-                    var localhostPaht=curWwwPath.substring(0,pos);
-                console.log(localhostPaht+'/auth/logoutapi');
-            fetch(localhostPaht+'/auth/logoutapi', {
-                method: 'POST'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+            // 获取基本信息
+            fetch('/api/basicinfo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
                 }
-                return response.json();
             })
+            .then(response => response.json())
             .then(data => {
-                if (data.state === 'Success') {
-                    location.reload();
-                } else {
-                    alert('Logout failed: ' + data);
-                    //location.reload();
+                loadingText.textContent = '';
+                if (data.state === 'Failed') {
+                    infoWindow.innerHTML = '<p class="error">获取基本信息失败</p>';
+                } else if (data.state === 'Success') {
+                    const role = data.role;
+                    const name = data.name;
+                    let idField = '';
+
+                    if (role === 'Student') {
+                        idField = `<p>学生ID: ${data.student_id}</p>`;
+                    } else if (role === 'Teacher') {
+                        idField = `<p>教师ID: ${data.teacher_id}</p>`;
+                    }
+
+                    infoWindow.innerHTML = `
+                        <p>姓名: ${name}</p>
+                        <p>角色: ${role}</p>
+                        ${idField}
+                    `;
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while logging out.');
+                loadingText.textContent = '';
+                infoWindow.innerHTML = `<p class="error">请求失败: ${error.message}</p>`;
+            });
+
+            // 登出功能
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                fetch('/auth/logoutapi', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state === 'Success') {
+                        location.reload();
+                    } else {
+                        alert('登出失败: ' + (data.message || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    alert('请求失败: ' + error.message);
+                });
             });
         });
     </script>

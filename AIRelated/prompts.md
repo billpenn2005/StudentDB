@@ -1,0 +1,4 @@
+主页面：
+```
+设计html页面，含有基本信息窗和登出按钮，其中基本信息窗在页面启动时向/api/basicinfo发送post获取信息，若state为Failed则显示错误，若state为Success则获取role和name并显示,若role为Student则获取student_id显示，若role为Teacher则获取teacher_id显示，登出按钮按下时向/auth/logoutapi发送post，若回复state为Success则刷新页面，否则报错
+```
