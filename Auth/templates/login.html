@@ -95,7 +95,17 @@
                 // Handle successful login response
                     console.log('Login successful:', loginResponse.data);
                     alert('Login successful!');
-                    window.location.replace('./index')
+                    var curWwwPath=window.document.location.href;
+
+                    //获取主机地址之后的目录，如： myproj/view/my.jsp
+
+                    var pathName=window.document.location.pathname;
+
+                    var pos=curWwwPath.indexOf(pathName);
+
+                    var localhostPaht=curWwwPath.substring(0,pos);
+
+                    window.location.replace(localhostPaht)
                 }
 
                 // Optionally, redirect to another page or perform further actions

@@ -2,6 +2,8 @@ from django.urls import path
 
 from . import views
 
+
+app_name='Auth'
 urlpatterns = [
     path('salt',views.RequireSalt,name='salt'),
     path('login',views.LoginPage,name='login'),

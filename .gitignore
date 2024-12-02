@@ -13,6 +13,7 @@ local_settings.py
 *.sqlite3
 
 # 忽略 IDE 和编辑器生成的文件
+.vscode/
 vscode/
 *.sublime*
 *.idea/

@@ -84,6 +84,7 @@ def LoginApi(request):
         request.session['has_salt']=False
         request.session['is_login']=True
         request.session['username']=username
+        request.session['role']=str(login_user.role)
         return http.JsonResponse(result)
     
 @csrf_exempt
