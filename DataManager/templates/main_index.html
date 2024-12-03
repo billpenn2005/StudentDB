@@ -29,12 +29,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             const infoWindow = document.getElementById('infoWindow');
             const loadingText = document.getElementById('loading');
-
+            const csrfToken = "{{ csrf_token }}";
             // 获取基本信息
             fetch('/api/basicinfo', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    //'Content-Type': 'application/json'
+                    'Content-Type':'application/x-www-form-urlencoded',
+                    "X-CSRFToken": csrfToken
                 }
             })
             .then(response => response.json())
@@ -48,7 +50,9 @@
                     let idField = '';
 
                     if (role === 'Student') {
-                        idField = `<p>学生ID: ${data.student_id}</p>`;
+                        idField = `<p>学生ID: ${data.student_id}</p>
+                                    <p>年龄: ${data.age}</p>
+                                    <p>性别：${data.sex}`;
                     } else if (role === 'Teacher') {
                         idField = `<p>教师ID: ${data.teacher_id}</p>`;
                     }
@@ -70,7 +74,9 @@
                 fetch('/auth/logoutapi', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        //'Content-Type': 'application/json'
+                        'Content-Type':'application/x-www-form-urlencoded',
+                        "X-CSRFToken": csrfToken
                     }
                 })
                 .then(response => response.json())

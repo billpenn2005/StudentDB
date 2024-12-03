@@ -5,14 +5,15 @@ from .models import *
 
 @admin.action(description="Set all time slots.")
 def set_time_slot(modeladmin, request, queryset):
-    for i in range(7):
-        for j in range(5):
-            TimeSlot.objects.create(slot=str(j),day=i+1)
+    for w in range(20):
+        for i in range(7):
+            for j in range(5):
+                TimeSlot.objects.create(slot=str(j),day=i+1,week=w+1)
 
 
 class TimeSlotAdmin(admin.ModelAdmin):
     list_display = ["day", "slot"]
-    ordering = ["day","slot"]
+    ordering = ["week","day","slot"]
     actions = [set_time_slot]
 
 
@@ -28,3 +29,8 @@ admin.site.register(StudentTake)
 admin.site.register(TeacherTeach)
 admin.site.register(TimeSlot,TimeSlotAdmin)
 admin.site.register(CourseTimeSlot)
+admin.site.register(Major)
+admin.site.register(Reward)
+admin.site.register(StudentReward)
+admin.site.register(Punishment)
+admin.site.register(StudentPunish)

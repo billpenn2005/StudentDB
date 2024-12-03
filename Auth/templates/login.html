@@ -79,12 +79,17 @@
 
                 console.log('hashed_pwd',hashedPassword)
 
+                const csrfToken = "{{ csrf_token }}";
+
                 const data = {
                     username:username,
                     password:hashedPassword
                 }
                 // Step 4: Post username and hashed password to auth/login API
-                const loginResponse = await axios.post('./loginapi', data, {headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+                const loginResponse = await axios.post('./loginapi', data, {headers:{
+                    'Content-Type':'application/x-www-form-urlencoded',
+                    "X-CSRFToken": csrfToken
+                    }});
 
                 if (loginResponse.data['state']!='Success') {
                     console.error('Login failed:', loginResponse.data['reason']);

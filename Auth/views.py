@@ -48,7 +48,7 @@ def LoginPage(request):
             context['salt']=salt['salt']
         return http.HttpResponse(template.render(context,request))
     
-@csrf_exempt
+#@csrf_exempt
 def LoginApi(request):
     result={
         'state':''
@@ -88,7 +88,7 @@ def LoginApi(request):
         request.session['auth_id']=login_user.id
         return http.JsonResponse(result)
     
-@csrf_exempt
+#@csrf_exempt
 def LogoutApi(request):
     result={
         'state':''
