@@ -14,8 +14,13 @@ urlpatterns = [
     path('api/removecourse',views.RemoveCourse,name='removecourse'),
     path('api/sectioninfo',views.SectionInfo,name='sectioninfo'),
     path('api/departmentinfo',views.DepartmentInfo,name='departmentinfo'),
+    path('api/majorinfo',views.MajorInfo,name='majorinfo'),
     path('api/classroominfo',views.ClassroomInfo,name='classroominfo'),
     path('api/timeslotinfo',views.TimeSlotInfo,name='timeslotinfo'),
     path('api/addcourseslot',views.AddCourseSlot,name='addcourseslot'),
     path('api/removecourseslot',views.RemoveCourseSlot,name='removecourseslot'),
+    path('api/adddepartment',views.AddDepartment,name='adddepartment'),
+    path('api/addmajor',views.AddMajor,name='addmajor'),
+    path('api/removedepartment',views.RemoveDepartment,name='removedepartment'),
+    path('api/removemajor',views.RemoveMajor,name='removemajor'),
 ]

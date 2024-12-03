@@ -111,8 +111,18 @@ class Teacher(models.Model):
     teacher_id=models.CharField('teacher_id',max_length=40,null=True)
     department=models.ForeignKey(Department,on_delete=models.SET_NULL,null=True)
     courses=models.ManyToManyField(Course,through='TeacherTeach')
+    permissioned_departments=models.ManyToManyField(Department,through='DepartmentPermission',related_name='permissioned_departments')
+    permissioned_majors=models.ManyToManyField(Major,through='MajorPermission',related_name='permissioned_majors')
     def __str__(self):
         return self.name
+    
+class DepartmentPermission(models.Model):
+    department=models.ForeignKey(Department,on_delete=models.CASCADE)
+    teacher=models.ForeignKey(Teacher,on_delete=models.CASCADE)
+
+class MajorPermission(models.Model):
+    major=models.ForeignKey(Major,on_delete=models.CASCADE)
+    teacher=models.ForeignKey(Teacher,on_delete=models.CASCADE)
 
 class StudentTake(models.Model):
     student=models.ForeignKey(Student,on_delete=models.CASCADE)
