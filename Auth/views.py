@@ -57,6 +57,10 @@ def LoginApi(request):
         result['state']='Failed'
         result['reason']='GET request'
         return http.JsonResponse(result)
+    elif request.session.get('is_login')==True:
+        result['state']='Failed'
+        result['reason']='Already logged in'
+        return http.JsonResponse(result)
     else:
         username=request.POST.get('username')
         hashed_pwd=request.POST.get('password')

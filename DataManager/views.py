@@ -93,19 +93,24 @@ def CourseInfo(request):
         result['courses']=[]
         rel_courses=list(StudentTake.objects.filter(student__student_id=request.session['student_id'],course__section__start_date__lte=now_time,course__section__end_date__gte=now_time))
         for i in rel_courses:
+            course_info={}
+            course_info['id']=i.course.id
+            course_info['name']=i.course.name
+            course_info['section']=i.course.section.name
+            course_info['slots']=[]
             rel_slots=list(i.course.timeslots.all())
             for j in rel_slots:
-                course_info={}
-                course_info['name']=i.course.name
-                course_info['week']=j.week
-                course_info['day']=j.day
-                course_info['slot']=int(j.slot)
-                rel_teachers=list(TeacherTeach.objects.filter(course=i.course))
-                concat_str=''
-                for k in rel_teachers:
-                    concat_str+=k.teacher.name+' '
-                course_info['teacher']=concat_str
-                result['courses'].append(course_info)
+                c_slot={}
+                c_slot['week']=j.week
+                c_slot['day']=j.day
+                c_slot['slot']=int(j.slot)
+                course_info['slots'].append(c_slot)
+            rel_teachers=list(TeacherTeach.objects.filter(course=i.course))
+            concat_str=''
+            for k in rel_teachers:
+                concat_str+=k.teacher.name+' '
+            course_info['teacher']=concat_str
+            result['courses'].append(course_info)
         result['state']='Success'
         return http.JsonResponse(result)
     elif request.session.get('role')=='Teacher':
@@ -118,19 +123,24 @@ def CourseInfo(request):
         result['courses']=[]
         rel_courses=list(TeacherTeach.objects.filter(teacher__teacher_id=request.session['teacher_id'],course__section__start_date__lte=now_time,course__section__end_date__gte=now_time))
         for i in rel_courses:
+            course_info={}
+            course_info['id']=i.course.id
+            course_info['name']=i.course.name
+            course_info['section']=i.course.section.name
+            course_info['slots']=[]
             rel_slots=list(i.course.timeslots.all())
             for j in rel_slots:
-                course_info={}
-                course_info['name']=i.course.name
-                course_info['week']=j.week
-                course_info['day']=j.day
-                course_info['slot']=int(j.slot)
-                rel_teachers=list(TeacherTeach.objects.filter(course=i.course))
-                concat_str=''
-                for k in rel_teachers:
-                    concat_str+=k.teacher.name+' '
-                course_info['teacher']=concat_str
-                result['courses'].append(course_info)
+                c_slot={}
+                c_slot['week']=j.week
+                c_slot['day']=j.day
+                c_slot['slot']=int(j.slot)
+                course_info['slots'].append(c_slot)
+            rel_teachers=list(TeacherTeach.objects.filter(course=i.course))
+            concat_str=''
+            for k in rel_teachers:
+                concat_str+=k.teacher.name+' '
+            course_info['teacher']=concat_str
+            result['courses'].append(course_info)
         result['state']='Success'
         return http.JsonResponse(result)
     
@@ -139,6 +149,10 @@ def RewardInfo(request):
     result={
         'state':'Failed'
     }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
     if request.method=='GET' :
         result['reason']='GET request'
         return http.JsonResponse(result)
@@ -164,6 +178,10 @@ def PunishmentInfo(request):
     result={
         'state':'Failed'
     }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
     if request.method=='GET' :
         result['reason']='GET request'
         return http.JsonResponse(result)
@@ -181,5 +199,149 @@ def PunishmentInfo(request):
             if with_detail:
                 punishment['detail']=i.punish.detail
             result['punishments'].append(punishment)
+        result['state']='Success'
+        return http.JsonResponse(result)
+
+def SectionInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    sections=list(Section.objects.all())
+    result['sections']=[]
+    for i in sections:
+        sec_obj={}
+        sec_obj['id']=i.id
+        sec_obj['name']=i.name
+        sec_obj['start_date']=str(i.start_date)
+        sec_obj['end_date']=str(i.end_date)
+        result['sections'].append(sec_obj)
+    return http.JsonResponse(result)
+
+def DepartmentInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    result['departments']=[]
+    departments=list(Department.objects.all())
+    for i in departments:
+        dep_obj={}
+        dep_obj['id']=i.id
+        dep_obj['name']=i.name
+        result['departments'].append(dep_obj)
+    return http.JsonResponse(result)
+
+
+def ClassroomInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    result['classrooms']=[]
+    classrooms=list(ClassRoom.objects.all())
+    for i in classrooms:
+        cls_obj={}
+        cls_obj['id']=i.id
+        cls_obj['rel_building_id']=i.related_building.id
+        cls_obj['number']=i.number
+        cls_obj['capacity']=i.capacity
+        result['classrooms'].append(cls_obj)
+    return http.JsonResponse(result)
+    
+
+def OpenCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Teacher' or request.session.get('role')!='Admin':
+        result['reason']='Not teacher'
+        return http.JsonResponse(result)
+    elif request.session.get('role')=='Teacher':
+        course_section=request.POST.get('section')
+        course_name=request.POST.get('name')
+        course_department=request.POST.get('department')
+        course_classroom=request.POST.get('classroom')
+        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+        if course_section is None or course_name is None or course_department is None or course_classroom is None:
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        c_name=str(course_name)
+        c_dep=Department.objects.filter(id=int(course_department)).first()
+        c_rom=ClassRoom.objects.filter(id=int(course_classroom)).first()
+        c_sec=Section.objects.filter(id=int(course_section)).first()
+        if c_dep is None:
+            result['state']='Failed'
+            result['reason']='department not exist'
+            return http.JsonResponse(result)
+        if c_rom is None:
+            result['state']='Failed'
+            result['reason']='classroom not exist'
+            return http.JsonResponse(result)
+        if c_sec is None:
+            result['state']='Failed'
+            result['reason']='section not exist'
+            return http.JsonResponse(result)
+        new_course=Course.objects.create(name=c_name,department=c_dep,classroom=c_rom,section=c_sec)
+        TeacherTeach.objects.create(teacher=rel_teacher,course=new_course)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    else:
+        course_section=request.POST.get('section')
+        course_name=request.POST.get('name')
+        course_department=request.POST.get('department')
+        course_classroom=request.POST.get('classroom')
+        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+        if course_section is None or course_name is None or course_department is None or course_classroom is None:
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        c_name=str(course_name)
+        c_dep=Department.objects.filter(id=int(course_department)).first()
+        c_rom=ClassRoom.objects.filter(id=int(course_classroom)).first()
+        c_sec=Section.objects.filter(id=int(course_section)).first()
+        if c_dep is None:
+            result['state']='Failed'
+            result['reason']='department not exist'
+            return http.JsonResponse(result)
+        if c_rom is None:
+            result['state']='Failed'
+            result['reason']='classroom not exist'
+            return http.JsonResponse(result)
+        if c_sec is None:
+            result['state']='Failed'
+            result['reason']='section not exist'
+            return http.JsonResponse(result)
+        new_course=Course.objects.create(name=c_name,department=c_dep,classroom=c_rom,section=c_sec)
+        #TeacherTeach.objects.create(teacher=rel_teacher,course=new_course)
         result['state']='Success'
         return http.JsonResponse(result)
