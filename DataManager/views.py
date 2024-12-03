@@ -284,7 +284,7 @@ def OpenCourse(request):
     if request.method=='GET' :
         result['reason']='GET request'
         return http.JsonResponse(result)
-    elif request.session.get('role')!='Teacher' or request.session.get('role')!='Admin':
+    elif request.session.get('role')!='Teacher' and request.session.get('role')!='Admin':
         result['reason']='Not teacher'
         return http.JsonResponse(result)
     elif request.session.get('role')=='Teacher':
@@ -497,3 +497,40 @@ def RemoveCourseSlot(request):
                     CourseTimeSlot.objects.filter(course=rel_c,time_slot=rel_slot).delete()
         result['state']='Success'
         return http.JsonResponse(result)
+    
+
+def RemoveCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Teacher' and request.session.get('role')!='Admin':
+        result['reason']='Not teacher'
+        return http.JsonResponse(result)
+    c_id=request.POST.get('course')
+    if c_id is None:
+        result['state']='Failed'
+        result['reason']='wrong param'
+        return http.JsonResponse(result)
+    c_id=int(c_id)
+    rel_c=Course.objects.filter(id=c_id).first()
+    if rel_c is None:
+        result['state']='Failed'
+        result['reason']='no such course'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Teacher':
+        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+        rel_tec=TeacherTeach.objects.filter(teacher=rel_teacher,course=rel_c).first()
+        if rel_tec is None:
+            result['state']='Failed'
+            result['reason']='permission denied'
+            return http.JsonResponse(result)
+    rel_c.delete()
+    result['state']='Success'
+    return http.JsonResponse(result)
