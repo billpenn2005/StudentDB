@@ -12,7 +12,7 @@ def set_time_slot(modeladmin, request, queryset):
 
 
 class TimeSlotAdmin(admin.ModelAdmin):
-    list_display = ["day", "slot"]
+    list_display = ["id","day", "slot"]
     ordering = ["week","day","slot"]
     actions = [set_time_slot]
 

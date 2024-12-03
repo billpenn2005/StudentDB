@@ -14,4 +14,7 @@ urlpatterns = [
     path('api/sectioninfo',views.SectionInfo,name='sectioninfo'),
     path('api/departmentinfo',views.DepartmentInfo,name='departmentinfo'),
     path('api/classroominfo',views.ClassroomInfo,name='classroominfo'),
+    path('api/timeslotinfo',views.TimeSlotInfo,name='timeslotinfo'),
+    path('api/addcourseslot',views.AddCourseSlot,name='addcourseslot'),
+    path('api/removecourseslot',views.RemoveCourseSlot,name='removecourseslot'),
 ]

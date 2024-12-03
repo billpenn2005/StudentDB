@@ -4,9 +4,9 @@ Please add these in JS
 ```
 const csrfToken = "{{ csrf_token }}";
 ```
-Please add these in headers
+Please add these in headers if not specially mentioned
 ```
-'Content-Type':'application/x-www-form-urlencoded',
+'Content-Type':'application/x-www-form-urlencoded', //if you need to use list or sth in json, ignore this line
 "X-CSRFToken": csrfToken
 ```
 ## Auth

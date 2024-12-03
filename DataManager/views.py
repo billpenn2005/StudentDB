@@ -6,6 +6,8 @@ from django.template import loader
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .models import *
+import json
+import io
 
 
 
@@ -320,7 +322,6 @@ def OpenCourse(request):
         course_name=request.POST.get('name')
         course_department=request.POST.get('department')
         course_classroom=request.POST.get('classroom')
-        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
         if course_section is None or course_name is None or course_department is None or course_classroom is None:
             result['state']='Failed'
             result['reason']='wrong param'
@@ -343,5 +344,156 @@ def OpenCourse(request):
             return http.JsonResponse(result)
         new_course=Course.objects.create(name=c_name,department=c_dep,classroom=c_rom,section=c_sec)
         #TeacherTeach.objects.create(teacher=rel_teacher,course=new_course)
+        result['state']='Success'
+        return http.JsonResponse(result)
+
+def TimeSlotInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    result['slots']=[]
+    slots=list(TimeSlot.objects.all())
+    for i in slots:
+        s_obj={}
+        s_obj['id']=i.id
+        s_obj['week']=i.week
+        s_obj['day']=i.day
+        s_obj['slot']=int(i.slot)
+        result['slots'].append(s_obj)
+    return http.JsonResponse(result)
+    
+def AddCourseSlot(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Teacher' and request.session.get('role')!='Admin':
+        result['reason']='Not teacher'
+        return http.JsonResponse(result)
+    else:
+        POST=None
+        try:
+            POST=json.loads(request.body)
+        except:
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        c_id=POST.get('course')
+        slots=POST.get('slots')
+        if not isinstance(slots,list) or not isinstance(c_id,int):
+            try:
+                slots=list(slots)
+                c_id=int(c_id)
+            except:
+                result['state']='Failed'
+                result['reason']='wrong param'
+                return http.JsonResponse(result)
+        if c_id is None or slots is None or (not isinstance(slots,list)):
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        rel_c=Course.objects.filter(id=c_id).first()
+        if rel_c is None:
+            result['state']='Failed'
+            result['reason']='no such course'
+            return http.JsonResponse(result)
+        rel_teacher=None
+        if request.session.get('role')=='Teacher':
+            rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+            rel_tec=TeacherTeach.objects.filter(teacher=rel_teacher,course=rel_c).first()
+            if rel_tec is None:
+                result['state']='Failed'
+                result['reason']='permission denied'
+                return http.JsonResponse(result)
+        for i in slots:
+            i_id=None
+            try:
+                i_id=int(i)
+            except:
+                result['state']='Failed'
+                result['reason']='wrong param'
+                return http.JsonResponse(result)
+            rel_slot=TimeSlot.objects.filter(id=i_id).first()
+            if rel_slot is not None:
+                if rel_c.timeslots.filter(id=i_id).first() is None:
+                    CourseTimeSlot.objects.create(course=rel_c,time_slot=rel_slot)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    
+def RemoveCourseSlot(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Teacher' and request.session.get('role')!='Admin':
+        result['reason']='Not teacher'
+        return http.JsonResponse(result)
+    else:
+        POST=None
+        try:
+            POST=json.loads(request.body)
+        except:
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        c_id=POST.get('course')
+        slots=POST.get('slots')
+        if not isinstance(slots,list) or not isinstance(c_id,int):
+            try:
+                slots=list(slots)
+                c_id=int(c_id)
+            except:
+                result['state']='Failed'
+                result['reason']='wrong param'
+                return http.JsonResponse(result)
+        if c_id is None or slots is None or (not isinstance(slots,list)):
+            result['state']='Failed'
+            result['reason']='wrong param'
+            return http.JsonResponse(result)
+        rel_c=Course.objects.filter(id=c_id).first()
+        if rel_c is None:
+            result['state']='Failed'
+            result['reason']='no such course'
+            return http.JsonResponse(result)
+        rel_teacher=None
+        if request.session.get('role')=='Teacher':
+            rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+            rel_tec=TeacherTeach.objects.filter(teacher=rel_teacher,course=rel_c).first()
+            if rel_tec is None:
+                result['state']='Failed'
+                result['reason']='permission denied'
+                return http.JsonResponse(result)
+        for i in slots:
+            i_id=None
+            try:
+                i_id=int(i)
+            except:
+                result['state']='Failed'
+                result['reason']='wrong param'
+                return http.JsonResponse(result)
+            rel_slot=TimeSlot.objects.filter(id=i_id).first()
+            if rel_slot is not None:
+                if rel_c.timeslots.filter(id=i_id).first() is not None:
+                    CourseTimeSlot.objects.filter(course=rel_c,time_slot=rel_slot).delete()
         result['state']='Success'
         return http.JsonResponse(result)
