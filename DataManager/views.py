@@ -219,8 +219,8 @@ def SectionInfo(request):
         sec_obj={}
         sec_obj['id']=i.id
         sec_obj['name']=i.name
-        sec_obj['start_date']=str(i.start_date)
-        sec_obj['end_date']=str(i.end_date)
+        sec_obj['start_date']=int(i.start_date.timestamp())
+        sec_obj['end_date']=int(i.end_date.timestamp())
         result['sections'].append(sec_obj)
     return http.JsonResponse(result)
 
@@ -933,4 +933,254 @@ def RevokeMajorPermission(request):
     result['state']='Success'
     return http.JsonResponse(result)
 
+
+
+def AddSelection(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    name=request.POST.get('name')
+    start_date=request.POST.get('start_date')
+    end_date=request.POST.get('end_date')
+    try:
+        name=str(name)
+        start_date=int(start_date)
+        end_date=int(end_date)
+        Selection.objects.create(name=name,start_date=timezone.datetime.fromtimestamp(start_date),end_date=timezone.datetime.fromtimestamp(end_date))
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    return http.JsonResponse(result)
+
+
+def RemoveSelection(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    s_id=request.POST.get('selection')
+    try:
+        s_id=int(s_id)
+        Selection.objects.filter(id=s_id).first().delete()
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    return http.JsonResponse(result)
+
+
+def SelectionInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Student':
+        rel_student=Student.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+        rel_sec=list(StudentSelection.objects.filter(student=rel_student))
+        result['selections']=[]
+        for i in rel_sec:
+            sec_obj={}
+            sec_obj['id']=i.selection.id
+            sec_obj['name']=i.selection.name
+            sec_obj['start_date']=int((i.selection.start_date).timestamp())
+            sec_obj['end_date']=int((i.selection.end_date).timestamp())
+            sec_obj['courses']=[]
+            sec_cs=list(i.selection.courses.all())
+            for j in sec_cs:
+                sec_obj['courses'].append(j.id)
+            result['selections'].append(sec_obj)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Admin':
+        rel_sec=list(StudentSelection.objects.all())
+        result['selections']=[]
+        for i in rel_sec:
+            sec_obj={}
+            sec_obj['name']=i.selection.name
+            sec_obj['start_date']=str(i.selection.start_date)
+            sec_obj['end_date']=str(i.selection.end_date)
+            sec_cs=list(i.selection.courses)
+            for j in sec_cs:
+                sec_obj['courses'].append(j.id)
+            result['selections'].append(sec_obj)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    return http.JsonResponse(result)
+
+
+
+def AddSelectionCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    c_id=request.POST.get('course')
+    s_id=request.POST.get('selection')
+    try:
+        c_id=int(c_id)
+        s_id=int(s_id)
+        rel_c=Course.objects.filter(id=c_id).first()
+        rel_s=Selection.objects.filter(id=s_id).first()
+        if rel_c is not None and rel_s is not None:
+            CourseSelection.objects.create(selection=rel_s,course=rel_c)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+
+
+
+def RemoveSelectionCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    c_id=request.POST.get('course')
+    s_id=request.POST.get('selection')
+    try:
+        c_id=int(c_id)
+        s_id=int(s_id)
+        rel_c=Course.objects.filter(id=c_id).first()
+        rel_s=Selection.objects.filter(id=s_id).first()
+        if rel_c is not None and rel_s is not None:
+            CourseSelection.objects.filter(selection=rel_s,course=rel_c).first().delete()
+        result['state']='Success'
+        return http.JsonResponse(result)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+
+
+def SelectSelectionCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Student':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    rel_student=Student.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+    s_id=request.POST.get('selection')
+    c_id=request.POST.get('course')
+    try:
+        s_id=int(s_id)
+        c_id=int(c_id)
+        rel_s=Selection.objects.filter(id=s_id).first()
+        rel_c=Course.objects.filter(id=c_id).first()
+        if rel_s.start_date<=timezone.now() and rel_s.end_date>=timezone.now() and rel_s is not None and rel_c is not None and CourseSelection.objects.filter(course=rel_c,selection=rel_s).first() is not None and StudentSelection.objects.filter(student=rel_student,selection=rel_s).first() is not None:
+            StudentSelectionCourse.objects.create(studentselection=StudentSelection.objects.filter(student=rel_student,selection=rel_s).first(),course=rel_c)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+
+
+def DeselectSelectionCourse(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Student':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    rel_student=Student.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+    s_id=request.POST.get('selection')
+    c_id=request.POST.get('course')
+    try:
+        s_id=int(s_id)
+        c_id=int(c_id)
+        rel_s=Selection.objects.filter(id=s_id).first()
+        rel_c=Course.objects.filter(id=c_id).first()
+        if rel_s.start_date<=timezone.now() and rel_s.end_date>=timezone.now() and rel_s is not None and rel_c is not None and CourseSelection.objects.filter(course=rel_c,selection=rel_s).first() is not None and StudentSelection.objects.filter(student=rel_student,selection=rel_s).first() is not None:
+            StudentSelectionCourse.objects.filter(studentselection=StudentSelection.objects.filter(student=rel_student,selection=rel_s).first(),course=rel_c).delete()
+        result['state']='Success'
+        return http.JsonResponse(result)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+
+
+def CheckSelection(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Student':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    rel_student=Student.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+    s_id=request.POST.get('selection')
+    try:
+        s_id=int(s_id)
+        rel_s=Selection.objects.filter(id=s_id).first()
+        rel_s.CheckAll(rel_student)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
 

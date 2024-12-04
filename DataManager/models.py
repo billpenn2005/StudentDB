@@ -1,5 +1,7 @@
 from django.db import models
 from Auth.models import AuthUser
+from django.utils import timezone
+import random
 # Create your models here.
 
 
@@ -47,8 +49,8 @@ class TimeSlot(models.Model):
 
 class Section(models.Model):
     name=models.CharField('name',max_length=40,null=True)
-    start_date = models.DateField()  # 学期的开始日期
-    end_date = models.DateField()    # 学期的结束日期
+    start_date = models.DateTimeField()  # 学期的开始日期
+    end_date = models.DateTimeField()    # 学期的结束日期
     def __str__(self):
         return self.name
 
@@ -70,10 +72,12 @@ class CourseTimeSlot(models.Model):
 
 class Reward(models.Model):
     name=models.CharField('name',max_length=40)
+    time=models.DateField(null=True)
     detail=models.CharField('detail',max_length=200)
 
 class Punishment(models.Model):
     name=models.CharField('name',max_length=40)
+    time=models.DateField(null=True)
     detail=models.CharField('detail',max_length=200)
 
 
@@ -135,3 +139,52 @@ class TeacherTeach(models.Model):
     course=models.ForeignKey(Course,on_delete=models.CASCADE)
     def __str__(self):
         return self.teacher.name+' teaches '+self.course.name
+
+class Selection(models.Model):
+    name=models.CharField('name',max_length=40)
+    courses=models.ManyToManyField(Course,through='CourseSelection')
+    start_date=models.DateTimeField(default=timezone.datetime.fromtimestamp(0))
+    end_date=models.DateTimeField(default=timezone.datetime.fromtimestamp(0))
+    def CheckAll(self,student):
+        if timezone.now()<=self.end_date:
+            return
+        s_s_obj=StudentSelection.objects.filter(student=student,selection__id=self.id).first()
+        if s_s_obj is not None and s_s_obj.checked is False:
+            s_c=list(s_s_obj.selected_courses.all())
+            for i in s_c:
+                c_s=CourseSelection.objects.filter(course=i,selection=self).first()
+                if c_s is not None:
+                    if c_s.capacity is None or c_s.capacity>=c_s.num:
+                        if StudentTake.objects.filter(student=student,course=i).first() is None:
+                            StudentTake.objects.create(student=student,course=i)
+                    else:
+                        rnd=random.randrange(1,c_s.num+1)
+                        if rnd<=c_s.capacity and c_s.capacity>0:
+                            if StudentTake.objects.filter(student=student,course=s_c).first() is None:
+                                StudentTake.objects.create(student=student,course=s_c)
+                            c_s.num-=1
+                            c_s.capacity-=1
+                            c_s.save()
+                        else:
+                            c_s.num-=1
+                            c_s.save()
+            s_s_obj.checked=True
+            s_s_obj.save()
+    def __str__(self):
+        return self.name
+
+class StudentSelection(models.Model):
+    student=models.ForeignKey(Student,on_delete=models.CASCADE)
+    selection=models.ForeignKey(Selection,on_delete=models.CASCADE)
+    selected_courses=models.ManyToManyField(Course,through='StudentSelectionCourse')
+    checked=models.BooleanField(default=False)
+
+class CourseSelection(models.Model):
+    selection=models.ForeignKey(Selection,on_delete=models.CASCADE)
+    course=models.ForeignKey(Course,on_delete=models.CASCADE)
+    capacity=models.IntegerField(null=True)
+    num=models.IntegerField(default=0)
+
+class StudentSelectionCourse(models.Model):
+    studentselection=models.ForeignKey(StudentSelection,on_delete=models.CASCADE)
+    course=models.ForeignKey(Course,on_delete=models.CASCADE)

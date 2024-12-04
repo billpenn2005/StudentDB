@@ -29,4 +29,12 @@ urlpatterns = [
     path('api/major/permission/grant',views.GrantMajorPermission,name='grantmajorpermission'),
     path('api/department/permission/revoke',views.RevokeDepartmentPermission,name='revokedepartmentpermission'),
     path('api/major/permission/revoke',views.RevokeMajorPermission,name='revokemajorpermission'),
+    path('api/selection/info',views.SelectionInfo,name='selectioninfo'),
+    path('api/selection/add',views.AddSelection,name='addselection'),
+    path('api/selection/remove',views.RemoveSelection,name='removeselection'),
+    path('api/selection/addcourse',views.AddSelectionCourse,name='addselectioncourse'),
+    path('api/selection/removecourse',views.RemoveSelectionCourse,name='removeselectioncourse'),
+    path('api/selection/select',views.SelectSelectionCourse,name='selectselectioncourse'),
+    path('api/selection/deselect',views.DeselectSelectionCourse,name='deselectselectioncourse'),
+    path('api/selection/check',views.CheckSelection,name='checkselectioncourse'),
 ]
