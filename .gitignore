@@ -27,6 +27,7 @@ vscode/
 *.swo
 *.swp
 *.komodoproject
+venv
 project
 pydevproject
 
