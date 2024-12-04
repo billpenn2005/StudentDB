@@ -10,4 +10,5 @@ urlpatterns = [
     path('index',views.IndexPage,name='index'),
     path('api/login',views.LoginApi,name='loginapi'),
     path('api/logout',views.LogoutApi,name='logoutapi'),
+    path('api/changepassword',views.ChangePassword,name='changepassword')
 ]
