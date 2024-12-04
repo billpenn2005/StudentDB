@@ -60,7 +60,7 @@
 
             try {
                 // Step 1: Get salt from auth/salt API
-                const saltResponse = await axios.get('./salt');
+                const saltResponse = await axios.get('./api/salt');
                 const salt = saltResponse.data.salt;
 
                 if (!salt) {
@@ -86,7 +86,7 @@
                     password:hashedPassword
                 }
                 // Step 4: Post username and hashed password to auth/login API
-                const loginResponse = await axios.post('./loginapi', data, {headers:{
+                const loginResponse = await axios.post('./api/login', data, {headers:{
                     'Content-Type':'application/x-www-form-urlencoded',
                     "X-CSRFToken": csrfToken
                     }});

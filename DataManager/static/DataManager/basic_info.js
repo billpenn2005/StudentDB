@@ -21,7 +21,7 @@
             const csrftoken = getCookie('csrftoken');
             //const csrfToken = "{{ csrf_token }}";
             // 获取基本信息
-            fetch('/api/basicinfo', {
+            fetch('/api/basic/info', {
                 method: 'POST',
                 headers: {
                     //'Content-Type': 'application/json'
@@ -61,12 +61,12 @@
 
             // 登出功能
             document.getElementById('logoutButton').addEventListener('click', () => {
-                fetch('/auth/logoutapi', {
+                fetch('/auth/api/logout', {
                     method: 'POST',
                     headers: {
                         //'Content-Type': 'application/json'
                         'Content-Type':'application/x-www-form-urlencoded',
-                        "X-CSRFToken": csrfToken
+                        "X-CSRFToken": csrftoken
                     }
                 })
                 .then(response => response.json())

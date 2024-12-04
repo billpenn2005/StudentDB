@@ -42,12 +42,12 @@ If not specially mentioned then all need CSRFtoken
 **格式**
 [额外说明]
 send(InPost/InBody)
-参数名称:参数类型:说明
+参数名称:参数类型:说明(非特别声明则为必须参数)
 receive
 参数名称:参数类型:说明
 
 ## Auth
- - /auth/loginapi
+ - **/auth/api/login**
     Requires CSRF and salt
     **send(InPost)**
     username:str:user's name
@@ -68,12 +68,12 @@ receive
     }
 
     ```
- - **/auth/salt**
+ - **/auth/api/salt**
     not need CSRF
     **send(InPost)**
     **receive**
     'salt':str:salt string
- - **/auth/logoutapi**
+ - **/auth/api/logout**
     **send(InPost)**
     **receive**
     state:str:"Success"/"Failed"
