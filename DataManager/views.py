@@ -678,7 +678,6 @@ def RemoveMajor(request):
     except:
         result['reason']='Wrong param'
         return http.JsonResponse(result)
-    result['state']='Success'
     rel_maj=Major.objects.filter(id=m_id).first()
     if rel_maj is None:
         result['reason']='No such major'
@@ -688,5 +687,89 @@ def RemoveMajor(request):
         if MajorPermission.objects.filter(teacher=rel_teacher,major__id=m_id).first() is None and DepartmentPermission.objects.filter(teacher=rel_teacher,department__id=rel_maj.related_department.id).first() is None:
             result['reason']='Permission denied'
             return http.JsonResponse(result)
+    result['state']='Success'
     rel_maj.delete()
     return http.JsonResponse(result)
+
+
+def EditMajor(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin' and request.session.get('role')!='Teacher':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    m_id=request.POST.get('major')
+    try:
+        m_id=int(m_id)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+    rel_maj=Major.objects.filter(id=m_id).first()
+    if rel_maj is None:
+        result['reason']='No such major'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Teacher':
+        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+        if MajorPermission.objects.filter(teacher=rel_teacher,major__id=m_id).first() is None and DepartmentPermission.objects.filter(teacher=rel_teacher,department__id=rel_maj.related_department.id).first() is None:
+            result['reason']='Permission denied'
+            return http.JsonResponse(result)
+    result['state']='Success'
+    rename=request.POST.get('name')
+    try:
+        rename=str(rename)
+        rel_maj.name=rename
+        rel_maj.save()
+    except:
+        pass
+    return http.JsonResponse(result)
+
+
+def EditDepartment(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    elif request.session.get('role')!='Admin' and request.session.get('role')!='Teacher':
+        result['reason']='Permission denied'
+        return http.JsonResponse(result)
+    m_id=request.POST.get('department')
+    try:
+        m_id=int(m_id)
+    except:
+        result['reason']='Wrong param'
+        return http.JsonResponse(result)
+    rel_dep=Department.objects.filter(id=m_id).first()
+    if rel_dep is None:
+        result['reason']='No such major'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Teacher':
+        rel_teacher=Teacher.objects.filter(related_auth_account_id=request.session.get('auth_id')).first()
+        if DepartmentPermission.objects.filter(teacher=rel_teacher,department__id=rel_dep.id).first() is None:
+            result['reason']='Permission denied'
+            return http.JsonResponse(result)
+    result['state']='Success'
+    rename=request.POST.get('name')
+    try:
+        rename=str(rename)
+        rel_dep.name=rename
+        rel_dep.save()
+    except:
+        pass
+    return http.JsonResponse(result)
+
+
+

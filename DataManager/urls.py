@@ -23,4 +23,6 @@ urlpatterns = [
     path('api/major/add',views.AddMajor,name='addmajor'),
     path('api/department/remove',views.RemoveDepartment,name='removedepartment'),
     path('api/major/remove',views.RemoveMajor,name='removemajor'),
+    path('api/major/edit',views.EditMajor,name='editmajor'),
+    path('api/department/edit',views.EditDepartment,name='editdepartment'),
 ]
