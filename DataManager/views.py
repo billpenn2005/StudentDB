@@ -1184,3 +1184,54 @@ def CheckSelection(request):
         result['reason']='Wrong param'
         return http.JsonResponse(result)
 
+
+def ExamInfo(request):
+    result={
+        'state':'Failed'
+    }
+    if request.session.get('is_login') != True:
+        result['state']='Failed'
+        result['reason']='not logged in'
+        return http.JsonResponse(result)
+    if request.method=='GET' :
+        result['reason']='GET request'
+        return http.JsonResponse(result)
+    if request.session.get('role')=='Student':
+        rel_student=Student.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+        rel_exams=list(StudentExam.objects.filter(student=rel_student))
+        result['state']='Success'
+        result['exams']=[]
+        for i in rel_exams:
+            e_obj={}
+            e_obj['course']=i.exam.course.id
+            e_obj['time']=i.exam.time.timestamp()
+            if i.score is not None:
+                e_obj['score']=i.score
+            result['exams'].append(e_obj)
+        return http.JsonResponse(result)
+    elif request.session.get('role')=='Teacher':
+        rel_teacher=Teacher.objects.filter(related_auth_account__id=request.session.get('auth_id')).first()
+        rel_c=list(TeacherTeach.objects.filter(teacher=rel_teacher))
+        result['exams']=[]
+        for i in rel_c:
+            rel_e=list(Exam.objects.filter(course=i.course))
+            for j in rel_e:
+                e_obj={}
+                e_obj['course']=j.course.id
+                e_obj['time']=int(j.time.timestamp())
+                result['exams'].append(e_obj)
+        result['state']='Success'
+        return http.JsonResponse(result)
+    elif request.session.get('role')=='Admin':
+        rel_c=list(TeacherTeach.objects.filter(teacher=rel_teacher))
+        result['exams']=[]
+        for i in rel_c:
+            rel_e=list(Exam.objects.all())
+            for j in rel_e:
+                e_obj={}
+                e_obj['course']=j.course.id
+                e_obj['time']=int(j.time.timestamp())
+                result['exams'].append(e_obj)
+        result['state']='Success'
+        return http.JsonResponse(result)
+

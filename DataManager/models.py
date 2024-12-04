@@ -188,3 +188,12 @@ class CourseSelection(models.Model):
 class StudentSelectionCourse(models.Model):
     studentselection=models.ForeignKey(StudentSelection,on_delete=models.CASCADE)
     course=models.ForeignKey(Course,on_delete=models.CASCADE)
+
+class Exam(models.Model):
+    course=models.ForeignKey(Course,on_delete=models.CASCADE)
+    time=models.DateTimeField('time',null=True)
+
+class StudentExam(models.Model):
+    student=models.ForeignKey(Student,on_delete=models.CASCADE)
+    exam=models.ForeignKey(Exam,on_delete=models.CASCADE)
+    score=models.IntegerField('score',null=True)
