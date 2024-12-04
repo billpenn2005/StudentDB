@@ -7,6 +7,7 @@ from .models import AuthUser
 import hashlib
 from django.views.decorators.csrf import csrf_exempt
 import json
+import base64
 
 
 
@@ -118,3 +119,39 @@ def IndexPage(request):
         return redirect('./login/')
     template=loader.get_template('Auth/index.html')
     return http.HttpResponse(template.render(context=None,request=request))
+
+def bytes_xor(s: bytes, k: bytes):
+    k = (k * (len(s) // len(k) + 1))[0:len(s)]
+    return bytes([a ^ b for a, b in zip(s, k)])
+
+def ChangePassword(request):
+    result={
+        'state':'Failed'
+    }
+    login_state=request.session.get('is_login')
+    if login_state != True:
+        result['reason']='Not logged in'
+        return http.JsonResponse(result)
+    if request.session.get('has_salt')!=True:
+        result['reason']='Requires salt'
+        return http.JsonResponse(result)
+    salt=request.session.get('salt').get('salt')
+    old_pwd=request.POST.get('old_password')
+    auth_user=AuthUser.objects.filter(id=request.session.get('auth_id')).first()
+    first_auth=hashlib.md5((auth_user.pwd_md5+salt).encode()).hexdigest()
+    #print(auth_user.pwd_md5)
+    if first_auth!=old_pwd:
+        result['reason']='Wrong old password'
+        return http.JsonResponse(result)
+    pwd_xor=request.POST.get('pwd_xor')
+    try:
+        pwd_xor=base64.b64decode(pwd_xor)
+        old_pwd=bytes(auth_user.pwd_md5.encode())
+        auth_user.pwd_md5=(bytes_xor(old_pwd,pwd_xor)).decode()
+        auth_user.save()
+        request.session['has_salt']=False
+    except:
+        result['reason']='Internal error'
+        return http.JsonResponse(result)
+    result['state']='Success'
+    return http.JsonResponse(result)
