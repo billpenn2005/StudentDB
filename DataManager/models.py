@@ -80,7 +80,7 @@ class Punishment(models.Model):
 class Student(models.Model):
     related_auth_account=models.ForeignKey(AuthUser,on_delete=models.CASCADE)
     name=models.CharField('name',max_length=40,null=True)
-    student_id=models.CharField('student_id',max_length=40,null=True)
+    student_id=models.CharField('student_id',max_length=40,null=True,unique=True)
     department=models.ForeignKey(Department,on_delete=models.SET_NULL,null=True)
     major=models.ForeignKey(Major,on_delete=models.SET_NULL,null=True)
     grade=models.IntegerField('grade')
@@ -108,7 +108,7 @@ class StudentPunish(models.Model):
 class Teacher(models.Model):
     related_auth_account=models.ForeignKey(AuthUser,on_delete=models.CASCADE)
     name=models.CharField('name',max_length=40,null=True)
-    teacher_id=models.CharField('teacher_id',max_length=40,null=True)
+    teacher_id=models.CharField('teacher_id',max_length=40,null=True,unique=True)
     department=models.ForeignKey(Department,on_delete=models.SET_NULL,null=True)
     courses=models.ManyToManyField(Course,through='TeacherTeach')
     permissioned_departments=models.ManyToManyField(Department,through='DepartmentPermission',related_name='permissioned_departments')

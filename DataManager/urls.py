@@ -25,4 +25,8 @@ urlpatterns = [
     path('api/major/remove',views.RemoveMajor,name='removemajor'),
     path('api/major/edit',views.EditMajor,name='editmajor'),
     path('api/department/edit',views.EditDepartment,name='editdepartment'),
+    path('api/department/permission/grant',views.GrantDepartmentPermission,name='grantdepartmentpermission'),
+    path('api/major/permission/grant',views.GrantMajorPermission,name='grantmajorpermission'),
+    path('api/department/permission/revoke',views.RevokeDepartmentPermission,name='revokedepartmentpermission'),
+    path('api/major/permission/revoke',views.RevokeMajorPermission,name='revokemajorpermission'),
 ]
