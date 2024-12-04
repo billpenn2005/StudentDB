@@ -37,9 +37,9 @@ def RequireSalt(request):
 def LoginPage(request):
     login_state=request.session.get('is_login')
     if login_state == True:
-        return redirect('./index')
+        return redirect('/')
     else:
-        template=loader.get_template('login.html')
+        template=loader.get_template('Auth/login.html')
         context={
             'salt':''
         }
@@ -116,5 +116,5 @@ def IndexPage(request):
     login_state=request.session.get('is_login')
     if login_state != True:
         return redirect('./login/')
-    template=loader.get_template('index.html')
+    template=loader.get_template('Auth/index.html')
     return http.HttpResponse(template.render(context=None,request=request))

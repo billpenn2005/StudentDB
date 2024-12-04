@@ -1,42 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>基本信息页面</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+  
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
-        .info-window {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 20px;
-        }
-        .error {
-            color: red;
-        }
-    </style>
-</head>
-<body>
-    <div class="info-window" id="infoWindow">
-        <p id="loading">加载中...</p>
-    </div>
-    <button id="logoutButton">登出</button>
+    }
+    return cookieValue;
+}
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', () => {
             const infoWindow = document.getElementById('infoWindow');
             const loadingText = document.getElementById('loading');
-            const csrfToken = "{{ csrf_token }}";
+            const csrftoken = getCookie('csrftoken');
+            //const csrfToken = "{{ csrf_token }}";
             // 获取基本信息
             fetch('/api/basicinfo', {
                 method: 'POST',
                 headers: {
                     //'Content-Type': 'application/json'
                     'Content-Type':'application/x-www-form-urlencoded',
-                    "X-CSRFToken": csrfToken
+                    "X-CSRFToken": csrftoken
                 }
             })
             .then(response => response.json())
@@ -92,6 +82,3 @@
                 });
             });
         });
-    </script>
-</body>
-</html>
