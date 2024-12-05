@@ -1,25 +1,34 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
-function App() {
+const App = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
+  const [userRole, setUserole] = useState('');
+
+  const handleLogin = (username, userrole) => {
+    setUsername(username);
+    setIsLoggedIn(true);
+    setUserole(userrole);
+  };
+
+  const handleLogout = () => {
+    setUsername('');
+    setIsLoggedIn(false);
+    setUserole('');
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div>
+        <Routes>
+          <Route path="/" element={isLoggedIn ? <Dashboard username={username} onLogout={handleLogout} userRole={userRole}  /> : <Login onLogin={handleLogin} />} />
+        </Routes>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;
