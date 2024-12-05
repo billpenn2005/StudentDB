@@ -1,4 +1,3 @@
-// src/pages/TeacherDashboard.js
 import React from 'react';
 import { Card, List, Button } from 'antd';
 
@@ -10,13 +9,11 @@ const TeacherDashboard = () => {
   ];
 
   const handleViewGrades = (student) => {
-    // 查看成绩的逻辑
     alert(`查看成绩: ${student.name}`);
   };
 
   return (
     <div>
-      <h2>老师页面</h2>
       <Card title="学生信息管理">
         <List
           itemLayout="horizontal"

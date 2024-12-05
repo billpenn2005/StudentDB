@@ -1,12 +1,10 @@
-// src/pages/CourseSelection.js
 import React, { useState, useEffect } from 'react';
-import { Table, Button } from 'antd';
+import { Table, Button, Tabs } from 'antd';
 
 const CourseSelection = () => {
   const [courses, setCourses] = useState([]);
-  
+
   useEffect(() => {
-    // 这里模拟获取课程数据，可以从后端 API 获取
     const fetchCourses = async () => {
       const data = [
         { key: '1', courseName: '数学', courseCode: 'MATH101', instructor: '张老师' },
@@ -20,7 +18,6 @@ const CourseSelection = () => {
   }, []);
 
   const handleCourseSelect = (course) => {
-    // 处理选课逻辑，通常是调用 API 向服务器提交选课请求
     alert(`已选择课程: ${course.courseName}`);
   };
 
@@ -39,10 +36,11 @@ const CourseSelection = () => {
   ];
 
   return (
-    <div>
-      <h2>选课页面</h2>
-      <Table columns={columns} dataSource={courses} />
-    </div>
+    <Tabs defaultActiveKey="1">
+      <Tabs.TabPane tab="选课页面" key="1">
+        <Table columns={columns} dataSource={courses} />
+      </Tabs.TabPane>
+    </Tabs>
   );
 };
 
