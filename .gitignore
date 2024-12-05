@@ -14,6 +14,10 @@ local_settings.py
 
 # 忽略 IDE 和编辑器生成的文件
 .vscode/
+.vscode
+backup
+dar
+node_modules
 vscode/
 *.sublime*
 *.idea/
@@ -23,6 +27,7 @@ vscode/
 *.swo
 *.swp
 *.komodoproject
+venv
 project
 pydevproject
 
