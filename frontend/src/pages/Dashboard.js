@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, Menu } from 'antd';
+import { Layout, Menu } from 'antd';
 import Header from '../components/Header';
 import CourseSelection from './CourseSelection';  // 选课页面组件
 import StudentInfo from './StudentInfo';  // 学生信息页面组件
@@ -45,6 +46,19 @@ const Dashboard = ({ username, userRole, onLogout }) => {
     return null;
   };
 
+  // 渲染内容区域
+  const renderContent = () => {
+    if (userRole === "student") {
+      if (selectedMenuItem === "1") return <CourseSelection />;
+      if (selectedMenuItem === "2") return <StudentInfo studentId={studentId} />;
+    } else if (userRole === "teacher") {
+      if (selectedMenuItem === "3") return <TeacherDashboard />;
+      if (selectedMenuItem === "4") return <TeacherDashboard />;
+      if (selectedMenuItem === "5") return <TeacherDashboard />;
+    }
+    return null;
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header username={username} onLogout={onLogout} />
@@ -55,7 +69,9 @@ const Dashboard = ({ username, userRole, onLogout }) => {
           <Menu
             mode="inline"
             selectedKeys={[selectedMenuItem]}  // 高亮当前选中的菜单项
+            selectedKeys={[selectedMenuItem]}  // 高亮当前选中的菜单项
             style={{ height: '100%', borderRight: 0 }}
+            onClick={({ key }) => setSelectedMenuItem(key)}  // 菜单项点击时更新选中的菜单项
             onClick={({ key }) => setSelectedMenuItem(key)}  // 菜单项点击时更新选中的菜单项
           >
             {renderMenuItems()}  {/* 渲染菜单项 */}
