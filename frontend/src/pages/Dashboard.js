@@ -1,6 +1,5 @@
-// src/pages/Dashboard.js
 import React, { useState } from 'react';
-import { Layout, Menu, Tabs } from 'antd';
+import { Layout, Menu } from 'antd';
 import Header from '../components/Header';
 import CourseSelection from './CourseSelection';  // 选课页面组件
 import StudentInfo from './StudentInfo';  // 学生信息页面组件
@@ -9,15 +8,8 @@ import TeacherDashboard from './TeacherDashboard';  // 老师页面组件
 const { Content, Sider } = Layout;
 
 const Dashboard = ({ username, userRole, onLogout }) => {
-  const [activeTab, setActiveTab] = useState("1");  // 当前tab
-  const [sidebarKey, setSidebarKey] = useState("1");  // 当前侧边栏选项
+  const [selectedMenuItem, setSelectedMenuItem] = useState("1");
   const studentId = "12345"; // 假设学生ID
-
-  // 处理侧边栏点击
-  const handleSidebarClick = (key) => {
-    setSidebarKey(key);
-    setActiveTab(key);  // 侧边栏点击时切换 Tab
-  };
 
   // 渲染学生或老师的菜单项
   const renderMenuItems = () => {
@@ -40,6 +32,19 @@ const Dashboard = ({ username, userRole, onLogout }) => {
     return null;
   };
 
+  // 渲染内容区域
+  const renderContent = () => {
+    if (userRole === "student") {
+      if (selectedMenuItem === "1") return <CourseSelection />;
+      if (selectedMenuItem === "2") return <StudentInfo studentId={studentId} />;
+    } else if (userRole === "teacher") {
+      if (selectedMenuItem === "3") return <TeacherDashboard />;
+      if (selectedMenuItem === "4") return <TeacherDashboard />;
+      if (selectedMenuItem === "5") return <TeacherDashboard />;
+    }
+    return null;
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header username={username} onLogout={onLogout} />
@@ -49,9 +54,9 @@ const Dashboard = ({ username, userRole, onLogout }) => {
         <Sider width={200} style={{ background: '#fff' }}>
           <Menu
             mode="inline"
-            selectedKeys={[sidebarKey]}  // 根据当前选中的 sidebarKey 高亮侧边栏
+            selectedKeys={[selectedMenuItem]}  // 高亮当前选中的菜单项
             style={{ height: '100%', borderRight: 0 }}
-            onClick={({ key }) => handleSidebarClick(key)}  // 侧边栏点击切换
+            onClick={({ key }) => setSelectedMenuItem(key)}  // 菜单项点击时更新选中的菜单项
           >
             {renderMenuItems()}  {/* 渲染菜单项 */}
           </Menu>
@@ -68,7 +73,7 @@ const Dashboard = ({ username, userRole, onLogout }) => {
                     {sidebarKey === '1' && <CourseSelection />}
                   </Tabs.TabPane>
                   <Tabs.TabPane tab="学生信息页面" key="2">
-                    {sidebarKey === '2' && <StudentInfo studentId={studentId} />}
+                    {sidebarKey === '2' && <StudentInfo username={username} />}
                   </Tabs.TabPane>
                 </>
               )}
