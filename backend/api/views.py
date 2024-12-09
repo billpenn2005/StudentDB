@@ -19,12 +19,9 @@ from .serializers import (
     RewardPunishmentSerializer, CourseSerializer, EnrollmentSerializer,
     ExamSerializer, RetakeExamSerializer, UserSerializer
 )
-<<<<<<< HEAD
 from .serializers import CourseSerializer, ClassSerializer, CourseSelectionSerializer, UserSerializer
 from .models import Course, Class, CourseSelection
 
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 from .permissions import IsAdminUser, IsTeacherUser, IsStudentUser
 
 # ViewSets
@@ -74,7 +71,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
-<<<<<<< HEAD
 class CourseListView(generics.ListAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
@@ -99,8 +95,6 @@ class CourseSelectionListView(generics.ListAPIView):
     def get_queryset(self):
         return CourseSelection.objects.filter(user=self.request.user).select_related('class_instance__course', 'class_instance__time_slot')
 
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class EnrollmentViewSet(viewsets.ModelViewSet):
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer
@@ -182,53 +176,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 # 注销视图
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception as e:
-            return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
 # 报表生成视图（示例：生成学生信息报表）
-from rest_framework.permissions import IsAdminUser
-from django.http import HttpResponse
-from reportlab.pdfgen import canvas
-
-class GenerateStudentReportView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def get(self, request, format=None):
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="student_report.pdf"'
-
-        p = canvas.Canvas(response)
-        p.setFont("Helvetica", 16)
-        p.drawString(100, 800, "学生信息报表")
-
-        students = Student.objects.all()
-        y = 750
-        p.setFont("Helvetica", 12)
-        for student in students:
-            text = f"姓名: {student.user.get_full_name()}, 单位: {student.department.name if student.department else 'N/A'}, 年龄: {student.age}, 性别: {student.get_gender_display()}, 身份证号码: {student.id_number}"
-            p.drawString(100, y, text)
-            y -= 20
-            if y < 50:
-                p.showPage()
-                y = 800
-
-        p.showPage()
-        p.save()
-        return response
-
-
-class CurrentUserView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user

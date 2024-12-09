@@ -7,7 +7,7 @@ import { Spin } from 'antd';
 
 const RoleProtectedRoute = ({ children, roles }) => {
     const { isAuthenticated, user, loading } = useContext(AuthContext);
-
+    console.log(roles);
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -20,7 +20,7 @@ const RoleProtectedRoute = ({ children, roles }) => {
         return <Navigate to="/" />;
     }
 
-    const userGroups = user.groups.map(group => group.name);
+    const userGroups = roles;
     const hasRole = roles.some(role => userGroups.includes(role));
 
     if (!hasRole) {

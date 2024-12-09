@@ -1,203 +1,40 @@
-# api/serializers.py
+# backend/api/serializers.py
 
 from rest_framework import serializers
-from django.contrib.auth.models import User, Group
-from .models import (
-    Department, Specialty, Student,
-    RewardPunishment, Course, Enrollment,
-<<<<<<< HEAD
-    Exam, RetakeExam, TimeSlot,Class,CourseSelection,ClassInstance
-)
+from django.contrib.auth.models import User
+from .models import Course, ClassInstance, CourseSelection, TimeSlot
 from django.db import transaction
 
-=======
-    Exam, RetakeExam
-)
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
-class GroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Group
-        fields = ['name']
-
-class UserSerializer(serializers.ModelSerializer):
-    groups = GroupSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups']
-        read_only_fields = ['id', 'username', 'groups']
-
-    def update(self, instance, validated_data):
-        # 更新用户的基本信息
-        instance.email = validated_data.get('email', instance.email)
-        instance.first_name = validated_data.get('first_name', instance.first_name)
-        instance.last_name = validated_data.get('last_name', instance.last_name)
-        instance.save()
-        return instance
-
-class DepartmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = ['id', 'name', 'description']
-
-<<<<<<< HEAD
-
-
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
-class SpecialtySerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(),
-        source='department',
-        write_only=True
-    )
-
-    class Meta:
-        model = Specialty
-        fields = ['id', 'name', 'description', 'department', 'department_id']
-
-class StudentSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-    department = DepartmentSerializer(read_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(),
-        source='department',
-        write_only=True
-    )
-    specialty = SpecialtySerializer(read_only=True)
-    specialty_id = serializers.PrimaryKeyRelatedField(
-        queryset=Specialty.objects.all(),
-        source='specialty',
-        write_only=True
-    )
-
-    class Meta:
-        model = Student
-        fields = [
-            'id', 'user', 'department', 'department_id',
-            'specialty', 'specialty_id', 'age',
-            'gender', 'id_number'
-        ]
-
-    def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        password = user_data.pop('password', None)
-        user = User.objects.create(**user_data)
-        if password:
-            user.set_password(password)
-            user.save()
-        student = Student.objects.create(user=user, **validated_data)
-        return student
-
-    def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', None)
-        if user_data:
-            user_serializer = UserSerializer(instance.user, data=user_data, partial=True)
-            if user_serializer.is_valid():
-                user_serializer.save()
-        return super().update(instance, validated_data)
-
-class RewardPunishmentSerializer(serializers.ModelSerializer):
-    student = StudentSerializer(read_only=True)
-    student_id = serializers.PrimaryKeyRelatedField(
-        queryset=Student.objects.all(),
-        source='student',
-        write_only=True
-    )
-
-    class Meta:
-        model = RewardPunishment
-        fields = ['id', 'student', 'student_id', 'type', 'description', 'date']
-
-<<<<<<< HEAD
 class TimeSlotSerializer(serializers.ModelSerializer):
     class Meta:
         model = TimeSlot
         fields = ['id', 'period']
 
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class CourseSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
-    department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(),
-        source='department',
-        write_only=True
-    )
-
     class Meta:
         model = Course
-        fields = ['id', 'name', 'description', 'credits', 'department', 'department_id']
+        fields = ['id', 'name', 'description']
 
-class EnrollmentSerializer(serializers.ModelSerializer):
-    student = StudentSerializer(read_only=True)
-    student_id = serializers.PrimaryKeyRelatedField(
-        queryset=Student.objects.all(),
-        source='student',
-        write_only=True
-    )
+class ClassInstanceSerializer(serializers.ModelSerializer):
     course = CourseSerializer(read_only=True)
     course_id = serializers.PrimaryKeyRelatedField(
-        queryset=Course.objects.all(),
-        source='course',
-        write_only=True
-    )
-
-    class Meta:
-        model = Enrollment
-        fields = ['id', 'student', 'student_id', 'course', 'course_id', 'enrolled_at']
-
-class ExamSerializer(serializers.ModelSerializer):
-    enrollment = EnrollmentSerializer(read_only=True)
-    enrollment_id = serializers.PrimaryKeyRelatedField(
-        queryset=Enrollment.objects.all(),
-        source='enrollment',
-        write_only=True
-    )
-
-    class Meta:
-        model = Exam
-        fields = ['id', 'enrollment', 'enrollment_id', 'exam_type', 'score', 'date']
-
-class RetakeExamSerializer(serializers.ModelSerializer):
-    enrollment = EnrollmentSerializer(read_only=True)
-    enrollment_id = serializers.PrimaryKeyRelatedField(
-        queryset=Enrollment.objects.all(),
-        source='enrollment',
-        write_only=True
-    )
-    original_exam = ExamSerializer(read_only=True)
-    original_exam_id = serializers.PrimaryKeyRelatedField(
-        queryset=Exam.objects.all(),
-        source='original_exam',
-        write_only=True
-    )
-
-    class Meta:
-        model = RetakeExam
-        fields = ['id', 'enrollment', 'enrollment_id', 'original_exam', 'original_exam_id', 'new_score', 'date']
-<<<<<<< HEAD
-
-
-class ClassSerializer(serializers.ModelSerializer):
-    course = CourseSerializer(read_only=True)
-    course_id = serializers.PrimaryKeyRelatedField(
-        queryset=Course.objects.all(), source='course', write_only=True
+        queryset=Course.objects.all(), write_only=True
     )
     time_slot = TimeSlotSerializer(read_only=True)
     time_slot_id = serializers.PrimaryKeyRelatedField(
-        queryset=TimeSlot.objects.all(), source='time_slot', write_only=True
+        queryset=TimeSlot.objects.all(), write_only=True
     )
+    enrolled_count = serializers.IntegerField(read_only=True)
 
     class Meta:
-        model = Class
-        fields = ['id', 'course', 'course_id', 'group', 'time_slot', 'time_slot_id', 'teacher']
-#TODO:: 检查classselection模型是否正确
+        model = ClassInstance
+        fields = ['id', 'course', 'course_id', 'group', 'time_slot', 'time_slot_id', 'teacher', 'capacity', 'enrolled_count']
+        read_only_fields = ['id', 'course', 'time_slot', 'enrolled_count']
+
 class CourseSelectionSerializer(serializers.ModelSerializer):
-    class_instance = ClassSerializer(read_only=True)
+    class_instance = ClassInstanceSerializer(read_only=True)
     class_instance_id = serializers.PrimaryKeyRelatedField(
-        queryset=Class.objects.all(), source='class_instance', write_only=True
+        queryset=ClassInstance.objects.all(), source='class_instance', write_only=True
     )
 
     class Meta:
@@ -221,6 +58,7 @@ class CourseSelectionSerializer(serializers.ModelSerializer):
                     f"课程时间与已选课程 '{selection.class_instance.course.name}' 冲突。"
                 )
         
+        # 检查容量
         if class_instance.enrolled_count >= class_instance.capacity:
             raise serializers.ValidationError("该班级已达到最大容量，无法再选取。")
         
@@ -243,5 +81,20 @@ class CourseSelectionSerializer(serializers.ModelSerializer):
             )
         
         return course_selection
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
+
+class UserSerializer(serializers.ModelSerializer):
+    groups = serializers.StringRelatedField(many=True, read_only=True)
+    selected_courses = CourseSelectionSerializer(many=True, read_only=True, source='course_selections')
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups', 'selected_courses']
+        read_only_fields = ['id', 'username', 'groups', 'selected_courses']
+
+    def update(self, instance, validated_data):
+        # 更新用户的基本信息
+        instance.email = validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.save()
+        return instance

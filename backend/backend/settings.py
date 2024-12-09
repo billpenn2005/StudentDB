@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'drf_yasg',
+    'drf_yasg2',
 
     # 你的应用
     'api',
@@ -103,6 +104,8 @@ STATIC_URL = '/static/'
 
 # REST Framework 配置
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),

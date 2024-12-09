@@ -1,0 +1,428 @@
+info:
+  description: ''
+  title: ''
+  version: ''
+openapi: 3.0.0
+paths:
+  /api/class-instances/:
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          description: A page number within the paginated result set.
+          title: Page
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - class-instances
+    post:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_create
+      tags:
+      - class-instances
+  /api/class-instances/{id}/:
+    delete:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_delete
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this class instance.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - class-instances
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_read
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this class instance.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - class-instances
+    patch:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_partial_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this class instance.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - class-instances
+    put:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u73ED\u7EA7\
+        \u5B9E\u4F8B\u3002"
+      operationId: class-instances_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this class instance.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - class-instances
+  /api/course-selections/:
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          description: A page number within the paginated result set.
+          title: Page
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - course-selections
+    post:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_create
+      tags:
+      - course-selections
+  /api/course-selections/{id}/:
+    delete:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_delete
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course selection.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - course-selections
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_read
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course selection.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - course-selections
+    patch:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_partial_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course selection.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - course-selections
+    put:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u521B\u5EFA\u8BFE\u7A0B\
+        \u9009\u8BFE\u8BB0\u5F55\u3002"
+      operationId: course-selections_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course selection.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - course-selections
+  /api/courses/:
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_list
+      parameters:
+      - in: query
+        name: page
+        schema:
+          description: A page number within the paginated result set.
+          title: Page
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - courses
+    post:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_create
+      tags:
+      - courses
+  /api/courses/{id}/:
+    delete:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_delete
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - courses
+    get:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_read
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - courses
+    patch:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_partial_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - courses
+    put:
+      description: "ViewSet \u7528\u4E8E\u67E5\u770B\u548C\u7F16\u8F91\u8BFE\u7A0B\
+        \u5B9E\u4F8B\u3002"
+      operationId: courses_update
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          description: A unique integer value identifying this course.
+          title: ID
+          type: integer
+      - in: query
+        name: search
+        schema:
+          description: A search term.
+          title: Search
+          type: string
+      - in: query
+        name: ordering
+        schema:
+          description: Which field to use when ordering the results.
+          title: Ordering
+          type: string
+      tags:
+      - courses
+  /api/token/:
+    post:
+      description: 'Takes a set of user credentials and returns an access and refresh
+        JSON web
+
+        token pair to prove the authentication of those credentials.'
+      operationId: token_create
+      tags:
+      - token
+servers:
+- url: ''

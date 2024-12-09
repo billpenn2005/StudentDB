@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.js
 
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -13,13 +13,16 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation(); // 获取当前路径
+    const hasNavigated = useRef(false); // Ref to track navigation
 
     const fetchUser = async () => {
         try {
-            const response = await axiosInstance.get('user/');
-            setUser(response.data);
+            const response = await axiosInstance.get('user/current');
+            if (JSON.stringify(response.data) !== JSON.stringify(user)) {
+                setUser(response.data);
+            }
             setIsAuthenticated(true);
-            console.log('Fetched User:', response.data); // 调试日志
+            console.log('Fetched User:', response.data); // Debug log
         } catch (err) {
             console.error(err);
             setIsAuthenticated(false);
@@ -37,7 +40,8 @@ export const AuthProvider = ({ children }) => {
         } else {
             setLoading(false);
         }
-    }, [isAuthenticated]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated]); // Ensure dependencies are correctly set
 
     const login = (accessToken, refreshToken) => {
         localStorage.setItem('access_token', accessToken);
@@ -57,22 +61,24 @@ export const AuthProvider = ({ children }) => {
 
     // 监听用户数据变化以进行跳转
     useEffect(() => {
-        if (user) {
-            const userGroups = user.groups.map(group => group.name);
-            console.log('User Groups:', userGroups); // 调试日志
+        if (user && !hasNavigated.current) {
+            const userGroups = user.groups;
+            console.log('User Groups:', userGroups); // Debug log
 
             // 仅当用户当前在首页时，进行自动导航
-            if (userGroups.includes('Student') && location.pathname === '/') {
-                navigate('/student-dashboard');
-            } else if (userGroups.includes('Teacher') && location.pathname === '/') {
-                navigate('/teacher-dashboard');
+            if (location.pathname === '/') {
+                if (userGroups.includes('Student')) {
+                    navigate('/student-dashboard');
+                } else if (userGroups.includes('Teacher')) {
+                    navigate('/teacher-dashboard');
+                }
+                hasNavigated.current = true; // Prevent future navigations
             }
-            // 否则，允许用户访问其他路由
         }
     }, [user, navigate, location.pathname]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, setUser, login, logout, loading }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading }}>
             {children}
         </AuthContext.Provider>
     );

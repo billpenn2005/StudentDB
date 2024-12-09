@@ -1,217 +1,151 @@
 # backend/api/viewsets.py
-# backend/api/viewsets.py
 
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import serializers
-from django.contrib.auth.models import User, Group
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import generics
-
-from .models import (
-    Department, Specialty, Student,
-    RewardPunishment, Course, Enrollment,
-    Exam, RetakeExam, Class, CourseSelection
-)
+from rest_framework import viewsets, permissions, mixins, generics
+from django.contrib.auth.models import User
+from .models import Course, ClassInstance, CourseSelection, Student
 from .serializers import (
-    DepartmentSerializer, SpecialtySerializer, StudentSerializer,
-    RewardPunishmentSerializer, CourseSerializer, EnrollmentSerializer,
-    ExamSerializer, RetakeExamSerializer, ClassSerializer,
-    CourseSelectionSerializer, UserSerializer
+    CourseSerializer,
+    ClassInstanceSerializer,
+    CourseSelectionSerializer,
+    UserSerializer,
 )
-from .permissions import IsAdminUser, IsTeacherUser, IsStudentUser
+from django.db import transaction
 
-from django.http import HttpResponse
-from reportlab.pdfgen import canvas
+class IsAdminOrReadOnly(permissions.BasePermission):
+    """
+    自定义权限类，只有管理员可以编辑，其他人只能读取。
+    """
 
-
-# 自定义权限类已经在 serializers 中定义
-# 这里不需要额外定义
-
-class DepartmentViewSet(viewsets.ModelViewSet):
-    queryset = Department.objects.all()
-    serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
-
-class SpecialtyViewSet(viewsets.ModelViewSet):
-    queryset = Specialty.objects.all()
-    serializer_class = SpecialtySerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
-
+    def has_permission(self, request, view):
+        # 允许所有人进行安全的方法（GET、HEAD、OPTIONS）
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # 只有管理员可以进行其他操作
+        return request.user and request.user.is_staff
+    
 class StudentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet 用于查看和编辑学生实例。
+    """
     queryset = Student.objects.all()
-    serializer_class = StudentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['department', 'specialty', 'gender', 'age']
-    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'id_number']
-    ordering_fields = ['age', 'user__username']
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            print("swagger_fake_view")
+            return CourseSelection.objects.none()
 
-class RewardPunishmentViewSet(viewsets.ModelViewSet):
-    queryset = RewardPunishment.objects.all()
-    serializer_class = RewardPunishmentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+        # 确保在非 swagger 文档生成请求中再去判断用户
+        if not self.request.user.is_authenticated:
+            return CourseSelection.objects.none()
+        
+        return CourseSelection.objects.filter(user=self.request.user).select_related(
+            'class_instance__course',
+            'class_instance__time_slot'
+        )
 
 class CourseViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet 用于查看和编辑课程实例。
+    """
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['department', 'credits']
-    search_fields = ['name']
-    ordering_fields = ['credits', 'name']
+    permission_classes = [IsAdminOrReadOnly]
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsTeacherUser | IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            print("swagger_fake_view")
+            return CourseSelection.objects.none()
 
-class EnrollmentViewSet(viewsets.ModelViewSet):
-    queryset = Enrollment.objects.all()
-    serializer_class = EnrollmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['student', 'course']
-    search_fields = ['student__user__username', 'course__name']
-    ordering_fields = ['enrolled_at']
+        # 确保在非 swagger 文档生成请求中再去判断用户
+        if not self.request.user.is_authenticated:
+            return CourseSelection.objects.none()
+        
+        return CourseSelection.objects.filter(user=self.request.user).select_related(
+            'class_instance__course',
+            'class_instance__time_slot'
+        )
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsTeacherUser | IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
+class ClassInstanceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet 用于查看和编辑班级实例。
+    """
+    queryset = ClassInstance.objects.all()
+    serializer_class = ClassInstanceSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
-class ExamViewSet(viewsets.ModelViewSet):
-    queryset = Exam.objects.all()
-    serializer_class = ExamSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['enrollment', 'exam_type']
-    search_fields = ['enrollment__student__user__username', 'enrollment__course__name']
-    ordering_fields = ['date', 'score']
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            print("swagger_fake_view")
+            return CourseSelection.objects.none()
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsTeacherUser | IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
-class RetakeExamViewSet(viewsets.ModelViewSet):
-    queryset = RetakeExam.objects.all()
-    serializer_class = RetakeExamSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['enrollment', 'original_exam']
-    search_fields = ['enrollment__student__user__username', 'original_exam__course__name']
-    ordering_fields = ['date', 'new_score']
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsTeacherUser | IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
-# backend/api/viewsets.py
-
-class ClassViewSet(viewsets.ModelViewSet):
-    queryset = Class.objects.all()
-    serializer_class = ClassSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['course']
-    search_fields = ['group', 'teacher']
-    ordering_fields = ['group', 'teacher']
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [permissions.IsAuthenticated, IsTeacherUser | IsAdminUser]
-        else:
-            permission_classes = [permissions.IsAuthenticated]
-        return [permission() for permission in permission_classes]
-
-    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
-    def by_course(self, request):
-        course_id = request.query_params.get('course_id')
-        if course_id is not None:
-            classes = self.queryset.filter(course__id=course_id)
-            serializer = self.get_serializer(classes, many=True)
-            return Response(serializer.data)
-        else:
-            return Response({"detail": "course_id 参数缺失"}, status=status.HTTP_400_BAD_REQUEST)
-
-# backend/api/viewsets.py
+        # 确保在非 swagger 文档生成请求中再去判断用户
+        if not self.request.user.is_authenticated:
+            return CourseSelection.objects.none()
+        
+        return CourseSelection.objects.filter(user=self.request.user).select_related(
+            'class_instance__course',
+            'class_instance__time_slot'
+        )
 
 class CourseSelectionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet 用于查看和创建课程选课记录。
+    """
     queryset = CourseSelection.objects.all()
     serializer_class = CourseSelectionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return CourseSelection.objects.filter(user=self.request.user).select_related('class_instance__course', 'class_instance__time_slot')
+        if getattr(self, 'swagger_fake_view', False):
+            print("swagger_fake_view")
+            return CourseSelection.objects.none()
+
+        # 确保在非 swagger 文档生成请求中再去判断用户
+        if not self.request.user.is_authenticated:
+            return CourseSelection.objects.none()
+        
+        return CourseSelection.objects.filter(user=self.request.user).select_related(
+            'class_instance__course',
+            'class_instance__time_slot'
+        )
 
     def perform_create(self, serializer):
+        # 将当前用户关联到选课记录
         serializer.save(user=self.request.user)
 
-class CustomTokenObtainPairSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    access = serializers.CharField(read_only=True)
-    refresh = serializers.CharField(read_only=True)
-    user_id = serializers.IntegerField(read_only=True)
-    email = serializers.EmailField(read_only=True)
-    first_name = serializers.CharField(read_only=True)
-    last_name = serializers.CharField(read_only=True)
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet 用于查看用户信息，仅允许读取。
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  # 仅管理员可以查看所有用户
 
-    def validate(self, attrs):
-        from django.contrib.auth import authenticate
-        username = attrs.get('username')
-        password = attrs.get('password')
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            print("swagger_fake_view")
+            return CourseSelection.objects.none()
 
-        user = authenticate(username=username, password=password)
-        if user is None:
-            raise serializers.ValidationError('Invalid username or password')
-
-        refresh = RefreshToken.for_user(user)
-
-        return {
-            'username': user.username,
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'user_id': user.id,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-        }
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
-# 注销视图
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        try:
-            refresh_token = request.data["refresh"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception as e:
-            return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+        # 确保在非 swagger 文档生成请求中再去判断用户
+        if not self.request.user.is_authenticated:
+            return CourseSelection.objects.none()
         
+        return CourseSelection.objects.filter(user=self.request.user).select_related(
+            'class_instance__course',
+            'class_instance__time_slot'
+        )
 
-# backend/api/viewsets.py
+# class CourseSelectionCreateView(generics.CreateAPIView):
 
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.views import APIView
+from django.http import HttpResponse
+from reportlab.pdfgen import canvas
 
 class GenerateStudentReportView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -239,9 +173,22 @@ class GenerateStudentReportView(APIView):
         p.save()
         return response
 
+
 class CurrentUserView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+    
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)

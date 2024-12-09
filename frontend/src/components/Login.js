@@ -13,6 +13,7 @@ const Login = () => {
     const { login } = useContext(AuthContext);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState('');
 
     const onFinish = async (values) => {
         const { username, password, remember } = values;
@@ -20,6 +21,7 @@ const Login = () => {
         try {
             const response = await axiosInstance.post('token/', { username, password });
             login(response.data.access, response.data.refresh);
+            setUsername(username);
             toast.success('登录成功');
             // 导航由 AuthContext 处理
         } catch (err) {

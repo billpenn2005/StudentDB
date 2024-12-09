@@ -23,7 +23,16 @@ const CourseSelection = () => {
         setLoading(true);
         try {
             const response = await axiosInstance.get('courses/');
-            setCourses(response.data);
+            console.log('Courses Response:', response.data); // 调试日志
+            // 根据实际结构设置 courses
+            if (Array.isArray(response.data)) {
+                setCourses(response.data);
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+                setCourses(response.data.results);
+            } else {
+                console.error('Unexpected courses data format:', response.data);
+                message.error('获取课程列表失败，数据格式错误');
+            }
         } catch (error) {
             console.error(error);
             message.error('获取课程列表失败');
@@ -31,13 +40,21 @@ const CourseSelection = () => {
             setLoading(false);
         }
     };
-
+    
     const fetchClasses = async (courseId) => {
         setLoading(true);
         try {
-            // 使用新的 API 路径获取特定课程的班级实例
-            const response = await axiosInstance.get(`classes/by_course/?course_id=${courseId}`);
-            setCourseClasses(response.data);
+            const response = await axiosInstance.get(`class-instances/?course=${courseId}`);
+            console.log('Classes Response:', response.data); // 调试日志
+            // 根据实际结构设置 courseClasses
+            if (Array.isArray(response.data)) {
+                setCourseClasses(response.data);
+            } else if (response.data.results && Array.isArray(response.data.results)) {
+                setCourseClasses(response.data.results);
+            } else {
+                console.error('Unexpected classes data format:', response.data);
+                message.error('获取班级信息失败，数据格式错误');
+            }
         } catch (error) {
             console.error(error);
             message.error('获取班级信息失败');
@@ -45,6 +62,7 @@ const CourseSelection = () => {
             setLoading(false);
         }
     };
+
     const handleViewDetails = (course) => {
         setSelectedCourse(course);
         fetchClasses(course.id);
@@ -61,7 +79,9 @@ const CourseSelection = () => {
         } catch (error) {
             console.error(error);
             if (error.response && error.response.data) {
-                message.error(Object.values(error.response.data).join(', ') || '选课失败');
+                // 处理多种错误信息
+                const errors = Object.values(error.response.data).flat();
+                message.error(errors.join(', ') || '选课失败');
             } else {
                 message.error('选课失败');
             }
@@ -70,6 +90,7 @@ const CourseSelection = () => {
         }
     };
 
+    
     // 获取已选课程的时间槽ID，用于冲突检测
     const selectedTimeSlots = user && user.selected_courses
         ? user.selected_courses.map(sc => sc.class_instance.time_slot.id)

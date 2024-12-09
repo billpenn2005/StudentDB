@@ -7,21 +7,14 @@ import StudentDashboard from './components/StudentDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
 import StudentProfile from './components/StudentProfile';
 import MyCourses from './components/MyCourses';
-<<<<<<< HEAD
 import CourseSelection from './components/CourseSelection';
 import Timetable from './components/Timetable';
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import Logout from './components/Logout';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Layout, Menu, Spin } from 'antd';
-<<<<<<< HEAD
 import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
-=======
-import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined } from '@ant-design/icons';
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 import { useContext } from 'react';
 import { AuthContext } from './contexts/AuthContext';
 
@@ -47,7 +40,7 @@ const App = () => {
                         <Menu.Item key="1" icon={<HomeOutlined />}>
                             <Link to="/">首页</Link>
                         </Menu.Item>
-                        {user && user.groups.some(group => group.name === 'Student') && ( // 大写 "Student"
+                        {user && user.groups[0] === 'Student' && ( // 大写 "Student"
                             <>
                                 <Menu.Item key="2" icon={<UserOutlined />}>
                                     <Link to="/student-dashboard">学生仪表盘</Link>
@@ -58,34 +51,23 @@ const App = () => {
                                 <Menu.Item key="4" icon={<BookOutlined />}>
                                     <Link to="/my-courses">我的课程</Link>
                                 </Menu.Item>
-<<<<<<< HEAD
                                 <Menu.Item key="5" icon={<CalendarOutlined />}>
                                     <Link to="/course-selection">选课</Link>
                                 </Menu.Item>
                                 <Menu.Item key="6" icon={<CalendarOutlined />}>
                                     <Link to="/timetable">课表</Link>
                                 </Menu.Item>
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
                             </>
                         )}
-                        {user && user.groups.some(group => group.name === 'Teacher') && ( // 大写 "Teacher"
+                        {user && user.groups[0] === 'Teacher' && ( // 大写 "Teacher"
                             <>
-<<<<<<< HEAD
                                 <Menu.Item key="7" icon={<UserOutlined />}>
-=======
-                                <Menu.Item key="5" icon={<UserOutlined />}>
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
                                     <Link to="/teacher-dashboard">老师仪表盘</Link>
                                 </Menu.Item>
                                 {/* 老师的其他菜单项 */}
                             </>
                         )}
-<<<<<<< HEAD
                         <Menu.Item key="8" icon={<LogoutOutlined />}>
-=======
-                        <Menu.Item key="6" icon={<LogoutOutlined />}>
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
                             <Logout />
                         </Menu.Item>
                     </Menu>
@@ -101,7 +83,7 @@ const App = () => {
                     {/* 显示用户组信息（调试用，完成后可移除） */}
                     {user && (
                         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                            <strong>用户组:</strong> {user.groups.map(group => group.name).join(', ')}
+                            <strong>用户组:</strong> {user.groups}
                         </div>
                     )}
                     <Routes>
@@ -121,7 +103,6 @@ const App = () => {
                                 <MyCourses />
                             </RoleProtectedRoute>
                         } />
-<<<<<<< HEAD
                         <Route path="/course-selection" element={
                             <RoleProtectedRoute roles={['Student']}>
                                 <CourseSelection />
@@ -132,8 +113,6 @@ const App = () => {
                                 <Timetable />
                             </RoleProtectedRoute>
                         } />
-=======
->>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
                         <Route path="/teacher-dashboard" element={
                             <RoleProtectedRoute roles={['Teacher']}>
                                 <TeacherDashboard />
