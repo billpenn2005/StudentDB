@@ -26,7 +26,7 @@ const StudentProfile = () => {
     const onFinish = async (values) => {
         setLoading(true);
         try {
-            const response = await axiosInstance.put('student/', values);
+            const response = await axiosInstance.put('user/current', values);
             setUser(response.data); // 更新全局用户状态
             message.success('个人信息更新成功');
             setEditing(false);
