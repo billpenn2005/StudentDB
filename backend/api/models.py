@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # backend/api/models.py
 
 from django.db import models
@@ -116,6 +117,8 @@ class RetakeExam(models.Model):
     def __str__(self):
         return f"{self.enrollment.student.user.username} - {self.original_exam.exam_type} - {self.original_exam.course.name} - Retake"
 
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 # api/models.py
 
 from django.db import models

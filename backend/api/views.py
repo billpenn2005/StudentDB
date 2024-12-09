@@ -19,9 +19,12 @@ from .serializers import (
     RewardPunishmentSerializer, CourseSerializer, EnrollmentSerializer,
     ExamSerializer, RetakeExamSerializer, UserSerializer
 )
+<<<<<<< HEAD
 from .serializers import CourseSerializer, ClassSerializer, CourseSelectionSerializer, UserSerializer
 from .models import Course, Class, CourseSelection
 
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 from .permissions import IsAdminUser, IsTeacherUser, IsStudentUser
 
 # ViewSets
@@ -71,6 +74,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
+<<<<<<< HEAD
 class CourseListView(generics.ListAPIView):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
@@ -95,6 +99,8 @@ class CourseSelectionListView(generics.ListAPIView):
     def get_queryset(self):
         return CourseSelection.objects.filter(user=self.request.user).select_related('class_instance__course', 'class_instance__time_slot')
 
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class EnrollmentViewSet(viewsets.ModelViewSet):
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer

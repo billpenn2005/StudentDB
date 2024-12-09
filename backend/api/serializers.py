@@ -5,10 +5,15 @@ from django.contrib.auth.models import User, Group
 from .models import (
     Department, Specialty, Student,
     RewardPunishment, Course, Enrollment,
+<<<<<<< HEAD
     Exam, RetakeExam, TimeSlot,Class,CourseSelection,ClassInstance
 )
 from django.db import transaction
 
+=======
+    Exam, RetakeExam
+)
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
@@ -35,8 +40,11 @@ class DepartmentSerializer(serializers.ModelSerializer):
         model = Department
         fields = ['id', 'name', 'description']
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class SpecialtySerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     department_id = serializers.PrimaryKeyRelatedField(
@@ -102,11 +110,14 @@ class RewardPunishmentSerializer(serializers.ModelSerializer):
         model = RewardPunishment
         fields = ['id', 'student', 'student_id', 'type', 'description', 'date']
 
+<<<<<<< HEAD
 class TimeSlotSerializer(serializers.ModelSerializer):
     class Meta:
         model = TimeSlot
         fields = ['id', 'period']
 
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
 class CourseSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     department_id = serializers.PrimaryKeyRelatedField(
@@ -166,6 +177,7 @@ class RetakeExamSerializer(serializers.ModelSerializer):
     class Meta:
         model = RetakeExam
         fields = ['id', 'enrollment', 'enrollment_id', 'original_exam', 'original_exam_id', 'new_score', 'date']
+<<<<<<< HEAD
 
 
 class ClassSerializer(serializers.ModelSerializer):
@@ -231,3 +243,5 @@ class CourseSelectionSerializer(serializers.ModelSerializer):
             )
         
         return course_selection
+=======
+>>>>>>> d621f73d01ec5b48ecc1852ea58fa51b1dcd7957
