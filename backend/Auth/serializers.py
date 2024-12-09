@@ -1,9 +1,14 @@
-# authapp/serializers.py
-
 from rest_framework import serializers
-from .models import AuthUser
+from django.contrib.auth.models import User, Group
 
-class AuthUserSerializer(serializers.ModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AuthUser
-        fields = ['id', 'username', 'password', 'role']  # 根据需要调整字段
+        model = Group
+        fields = ['name']
+
+class UserSerializer(serializers.ModelSerializer):
+    groups = GroupSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups']
