@@ -2,94 +2,73 @@
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Course, ClassInstance, CourseSelection, TimeSlot
+from .models import Department, Grade, Class, CoursePrototype, CourseInstance, Student
 from django.db import transaction
+#from django.contrib.auth import get_user_model
 
-class TimeSlotSerializer(serializers.ModelSerializer):
+#User = get_user_model()
+
+class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TimeSlot
-        fields = ['id', 'period']
+        model = Department
+        fields = '__all__'
 
-class CourseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Course
-        fields = ['id', 'name', 'description']
-
-class ClassInstanceSerializer(serializers.ModelSerializer):
-    course = CourseSerializer(read_only=True)
-    course_id = serializers.PrimaryKeyRelatedField(
-        queryset=Course.objects.all(), write_only=True
-    )
-    time_slot = TimeSlotSerializer(read_only=True)
-    time_slot_id = serializers.PrimaryKeyRelatedField(
-        queryset=TimeSlot.objects.all(), write_only=True
-    )
-    enrolled_count = serializers.IntegerField(read_only=True)
+class GradeSerializer(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
 
     class Meta:
-        model = ClassInstance
-        fields = ['id', 'course', 'course_id', 'group', 'time_slot', 'time_slot_id', 'teacher', 'capacity', 'enrolled_count']
-        read_only_fields = ['id', 'course', 'time_slot', 'enrolled_count']
+        model = Grade
+        fields = '__all__'
 
-class CourseSelectionSerializer(serializers.ModelSerializer):
-    class_instance = ClassInstanceSerializer(read_only=True)
-    class_instance_id = serializers.PrimaryKeyRelatedField(
-        queryset=ClassInstance.objects.all(), source='class_instance', write_only=True
-    )
+class ClassSerializer(serializers.ModelSerializer):
+    grade = GradeSerializer(read_only=True)
+    # 移除 department 字段，因为 Grade 已经关联到 Department
 
     class Meta:
-        model = CourseSelection
-        fields = ['id', 'class_instance', 'class_instance_id', 'user', 'selected_at']
-        read_only_fields = ['id', 'user', 'selected_at']
+        model = Class
+        fields = '__all__'
 
-    def validate(self, data):
-        user = self.context['request'].user
-        class_instance = data['class_instance']
+class CoursePrototypeSerializer(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
 
-        # 检查是否已经选过该课程
-        if CourseSelection.objects.filter(user=user, class_instance=class_instance).exists():
-            raise serializers.ValidationError("您已经选过该课程。")
+    class Meta:
+        model = CoursePrototype
+        fields = '__all__'
 
-        # 检查时间冲突
-        existing_selections = CourseSelection.objects.filter(user=user).select_related('class_instance__time_slot')
-        for selection in existing_selections:
-            if selection.class_instance.time_slot == class_instance.time_slot:
-                raise serializers.ValidationError(
-                    f"课程时间与已选课程 '{selection.class_instance.course.name}' 冲突。"
-                )
-        
-        # 检查容量
-        if class_instance.enrolled_count >= class_instance.capacity:
-            raise serializers.ValidationError("该班级已达到最大容量，无法再选取。")
-        
-        return data
+class CourseInstanceSerializer(serializers.ModelSerializer):
+    course_prototype = CoursePrototypeSerializer(read_only=True)
+    department = DepartmentSerializer(read_only=True)
+    eligible_departments = DepartmentSerializer(many=True, read_only=True)
+    eligible_grades = GradeSerializer(many=True, read_only=True)
+    eligible_classes = ClassSerializer(many=True, read_only=True)
+    selected_students = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
-    def create(self, validated_data):
-        user = self.context['request'].user
-        class_instance = validated_data['class_instance']
-        
-        with transaction.atomic():
-            # 锁定当前班级记录，防止其他事务修改
-            class_instance = ClassInstance.objects.select_for_update().get(id=class_instance.id)
-            
-            if class_instance.enrolled_count >= class_instance.capacity:
-                raise serializers.ValidationError("该班级已达到最大容量，无法再选取。")
-            
-            course_selection = CourseSelection.objects.create(
-                user=user,
-                class_instance=class_instance
-            )
-        
-        return course_selection
+    class Meta:
+        model = CourseInstance
+        fields = '__all__'
+
+class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseInstance
+        fields = '__all__'
+
+class StudentSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+    grade = GradeSerializer(read_only=True)
+    student_class = ClassSerializer(read_only=True)
+
+    class Meta:
+        model = Student
+        fields = ['user', 'student_id', 'grade', 'student_class']
 
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.StringRelatedField(many=True, read_only=True)
-    selected_courses = CourseSelectionSerializer(many=True, read_only=True, source='course_selections')
+    #selected_courses = CourseSelectionSerializer(many=True, read_only=True, source='course_selections')
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups', 'selected_courses']
-        read_only_fields = ['id', 'username', 'groups', 'selected_courses']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups']
+        read_only_fields = ['id', 'username', 'groups']
 
     def update(self, instance, validated_data):
         # 更新用户的基本信息

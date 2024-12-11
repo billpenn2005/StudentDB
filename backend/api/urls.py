@@ -2,17 +2,15 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .viewsets import CourseViewSet, ClassInstanceViewSet, CourseSelectionViewSet, StudentViewSet, UserViewSet, CurrentUserView
+from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
 
 router = DefaultRouter()
-router.register(r'courses', CourseViewSet, basename='course')
-router.register(r'class-instances', ClassInstanceViewSet, basename='classinstance')
-router.register(r'course-selections', CourseSelectionViewSet, basename='courseselection')
-router.register(r'students', StudentViewSet, basename='student')
+router.register(r'course-prototypes', CoursePrototypeViewSet, basename='course-prototype')
+router.register(r'course-instances', CourseInstanceViewSet, basename='course-instance')
 
 urlpatterns = [
     path('', include(router.urls)),

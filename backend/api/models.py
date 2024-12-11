@@ -3,7 +3,57 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-class TimeSlot(models.Model):
+
+
+
+
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+class CoursePrototype(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_prototypes')
+    # 其他课程基础属性
+
+    def __str__(self):
+        return self.name
+
+class Grade(models.Model):
+    name = models.CharField(max_length=20)  # 如 "2024级"
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='grades')
+
+    def __str__(self):
+        return f"{self.department.name} - {self.name}"
+
+class Class(models.Model):
+    name = models.CharField(max_length=50)  # 如 "2024级1班"
+    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='classes')
+    # 移除 department 字段，因为 Grade 已经关联到 Department
+
+    def __str__(self):
+        return self.name
+
+
+class CourseInstance(models.Model):
+    course_prototype = models.ForeignKey(CoursePrototype, on_delete=models.CASCADE, related_name='instances')
+    semester = models.CharField(max_length=20)  # 如 "2024春"
+    location = models.CharField(max_length=100)
+    capacity = models.PositiveIntegerField()
+    selection_deadline = models.DateTimeField()
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_instances')
+
+    # 上课时间：一天5大节课中的某大节
+    DAY_PERIOD_CHOICES = [
+        ('Monday', '星期一'),
+        ('Tuesday', '星期二'),
+        ('Wednesday', '星期三'),
+        ('Thursday', '星期四'),
+        ('Friday', '星期五'),
+    ]
     PERIOD_CHOICES = [
         (1, '第一节'),
         (2, '第二节'),
@@ -11,33 +61,30 @@ class TimeSlot(models.Model):
         (4, '第四节'),
         (5, '第五节'),
     ]
-    period = models.IntegerField(choices=PERIOD_CHOICES, unique=True)
+    day = models.CharField(max_length=10, choices=DAY_PERIOD_CHOICES)
+    period = models.PositiveSmallIntegerField(choices=PERIOD_CHOICES)
+
+    # 可选课的选课对象（班级）
+    eligible_departments = models.ManyToManyField(Department, related_name='eligible_course_instances')
+    eligible_grades = models.ManyToManyField(Grade, related_name='eligible_course_instances')
+    eligible_classes = models.ManyToManyField(Class, related_name='eligible_course_instances')
+
+    # 已选学生
+    selected_students = models.ManyToManyField(User, related_name='course_selected_courses', blank=True)
+
+    # 课程最终化标志
+    is_finalized = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"第{self.period}节"
+        return f"{self.course_prototype.name} - {self.semester}"
 
-
-class Department(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    department_id = models.IntegerField()
-    def __str__(self):
-        return self.name
-
-
-class Specialty(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    department = models.ForeignKey(Department, related_name='specialties', on_delete=models.CASCADE)
-    Specialty_id = models.IntegerField()
+class ClassInstance(models.Model):
+    # 假设 ClassInstance 是不同于 CourseInstance 的一个模型，具体根据需求调整
+    selected_students = models.ManyToManyField(User, related_name='class_selected_courses', blank=True)
+    # 其他字段
 
     def __str__(self):
-        return self.name
-    
-
-
-# api/models.py
-
-from django.db import models
-from django.contrib.auth.models import User
+        return f"ClassInstance {self.id}"
 
 
 class Student(models.Model):
@@ -48,52 +95,13 @@ class Student(models.Model):
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     department = models.ForeignKey(Department, related_name='students', on_delete=models.SET_NULL, null=True)
-    specialty = models.ForeignKey(Specialty, related_name='students', on_delete=models.SET_NULL, null=True)
+    #specialty = models.ForeignKey(Specialty, related_name='students', on_delete=models.SET_NULL, null=True)
     age = models.PositiveIntegerField()
+    student_class = models.ForeignKey(Class, related_name='students', on_delete=models.SET_NULL, null=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     id_number = models.CharField(max_length=18, unique=True)  # 身份证号码
-    major = models.CharField(max_length=100, default="NULL")  # 专业
-    grade = models.PositiveIntegerField(default=0)  # 年级
+    #major = models.CharField(max_length=100, default="NULL")  # 专业
+    #grade = models.PositiveIntegerField(default=0)  # 年级
     
     def __str__(self):
         return self.user.get_full_name()
-
-
-
-class Course(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    department = models.ForeignKey(Department, related_name='courses', on_delete=models.SET_NULL, null=True)
-    description = models.TextField(blank=True, null=True)
-    credits = models.PositiveIntegerField(default=3)  # 学分
-    course_id = models.IntegerField()
-
-    def __str__(self):
-        return self.name
-
-class ClassInstance(models.Model):
-    course = models.ForeignKey(Course, related_name='classes', on_delete=models.CASCADE)
-    group = models.CharField(max_length=50)  # 班级名称，例如 "A班"
-    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)
-    teacher = models.CharField(max_length=100)
-    capacity = models.PositiveIntegerField(default=50)  # 课程容量
-    enrolled_count = models.PositiveIntegerField(default=0)  # 已选人数
-    selected_students = models.ManyToManyField(User, through='CourseSelection', related_name='selected_courses')  # 已选学生
-
-    # 其他班级相关字段
-
-    def __str__(self):
-        return f"{self.course.name} - {self.group} - {self.time_slot}"
-
-    class Meta:
-        unique_together = ('group', 'time_slot')  # 确保同一班级在同一时间只有一个课程
-
-class CourseSelection(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='course_selections')
-    class_instance = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
-    selected_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ('user', 'class_instance')  # 确保用户不能重复选同一课程
-
-    def __str__(self):
-        return f"{self.user.username} - {self.class_instance.course.name} - {self.class_instance.group}"

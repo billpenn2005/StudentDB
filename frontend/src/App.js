@@ -1,6 +1,6 @@
 // src/App.js
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { Route, Routes, Navigate, Link } from 'react-router-dom';
 import Home from './components/Home';
 import StudentDashboard from './components/StudentDashboard';
@@ -15,10 +15,10 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Layout, Menu, Spin } from 'antd';
 import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
-import { useContext } from 'react';
 import { AuthContext } from './contexts/AuthContext';
 
 const { Header, Content, Footer, Sider } = Layout;
+const { SubMenu } = Menu;
 
 const App = () => {
     const { isAuthenticated, user, loading } = useContext(AuthContext);
@@ -31,6 +31,15 @@ const App = () => {
         );
     }
 
+    // 安全检查用户组
+    const isStudent = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'student');
+    const isTeacher = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'teacher');
+    
+    // 调试输出
+    console.log('当前用户:', user);
+    console.log('是否为学生:', isStudent);
+    console.log('是否为教师:', isTeacher);
+
     return (
         <Layout style={{ minHeight: '100vh' }}>
             {isAuthenticated && (
@@ -40,7 +49,8 @@ const App = () => {
                         <Menu.Item key="1" icon={<HomeOutlined />}>
                             <Link to="/">首页</Link>
                         </Menu.Item>
-                        {user && user.groups[0] === 'Student' && ( // 大写 "Student"
+
+                        {isStudent && (
                             <>
                                 <Menu.Item key="2" icon={<UserOutlined />}>
                                     <Link to="/student-dashboard">学生仪表盘</Link>
@@ -48,18 +58,23 @@ const App = () => {
                                 <Menu.Item key="3" icon={<ProfileOutlined />}>
                                     <Link to="/student-profile">学生资料</Link>
                                 </Menu.Item>
-                                <Menu.Item key="4" icon={<BookOutlined />}>
-                                    <Link to="/my-courses">我的课程</Link>
-                                </Menu.Item>
-                                <Menu.Item key="5" icon={<CalendarOutlined />}>
-                                    <Link to="/course-selection">选课</Link>
-                                </Menu.Item>
-                                <Menu.Item key="6" icon={<CalendarOutlined />}>
-                                    <Link to="/timetable">课表</Link>
-                                </Menu.Item>
+
+                                {/* 使用 SubMenu 来包含“我的选课”下的子项 */}
+                                <SubMenu key="sub1" icon={<BookOutlined />} title="我的选课">
+                                    <Menu.Item key="4">
+                                        <Link to="/my-courses">已选课程</Link>
+                                    </Menu.Item>
+                                    <Menu.Item key="5">
+                                        <Link to="/course-selection">选课</Link>
+                                    </Menu.Item>
+                                    <Menu.Item key="6">
+                                        <Link to="/timetable">目前课表</Link>
+                                    </Menu.Item>
+                                </SubMenu>
                             </>
                         )}
-                        {user && user.groups[0] === 'Teacher' && ( // 大写 "Teacher"
+
+                        {isTeacher && (
                             <>
                                 <Menu.Item key="7" icon={<UserOutlined />}>
                                     <Link to="/teacher-dashboard">老师仪表盘</Link>
@@ -67,6 +82,7 @@ const App = () => {
                                 {/* 老师的其他菜单项 */}
                             </>
                         )}
+
                         <Menu.Item key="8" icon={<LogoutOutlined />}>
                             <Logout />
                         </Menu.Item>
@@ -83,7 +99,7 @@ const App = () => {
                     {/* 显示用户组信息（调试用，完成后可移除） */}
                     {user && (
                         <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                            <strong>用户组:</strong> {user.groups}
+                            <strong>用户组:</strong> {user.groups.map(group => group.name).join(', ')}
                         </div>
                     )}
                     <Routes>

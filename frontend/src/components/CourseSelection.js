@@ -22,7 +22,7 @@ const CourseSelection = () => {
     const fetchCourses = async () => {
         setLoading(true);
         try {
-            const response = await axiosInstance.get('courses/');
+            const response = await axiosInstance.get('course-instances/list_available_courses/');
             console.log('Courses Response:', response.data); // 调试日志
             // 根据实际结构设置 courses
             if (Array.isArray(response.data)) {
