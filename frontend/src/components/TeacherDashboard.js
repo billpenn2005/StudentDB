@@ -1,42 +1,45 @@
 // src/components/TeacherDashboard.js
 
 import React from 'react';
-import { Typography, Card, List } from 'antd';
-
-const { Title, Paragraph } = Typography;
+import { Card, Statistic, Row, Col } from 'antd';
+import { BookOutlined, ProfileOutlined, TeamOutlined } from '@ant-design/icons';
 
 const TeacherDashboard = () => {
-    // 示例数据，可以根据实际需求从 API 获取
-    const courses = [
-        '高级数学 501',
-        '量子物理 601',
-        '有机化学 701',
-    ];
-
     return (
-        <div style={styles.container}>
-            <Title level={2}>老师仪表盘</Title>
-            <Card title="管理的课程" bordered={false} style={styles.card}>
-                <List
-                    bordered
-                    dataSource={courses}
-                    renderItem={item => <List.Item>{item}</List.Item>}
-                />
-            </Card>
-            {/* 添加更多老师相关的内容 */}
+        <div>
+            <h1>老师仪表盘</h1>
+            <Row gutter={16}>
+                <Col span={8}>
+                    <Card>
+                        <Statistic
+                            title="管理课程"
+                            value={3} // 动态数据
+                            prefix={<BookOutlined />}
+                        />
+                    </Card>
+                </Col>
+                <Col span={8}>
+                    <Card>
+                        <Statistic
+                            title="录入成绩"
+                            value={10} // 动态数据
+                            prefix={<ProfileOutlined />}
+                        />
+                    </Card>
+                </Col>
+                <Col span={8}>
+                    <Card>
+                        <Statistic
+                            title="管理学生"
+                            value={50} // 动态数据
+                            prefix={<TeamOutlined />}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+            {/* 其他仪表盘内容 */}
         </div>
     );
-};
-
-const styles = {
-    container: {
-        textAlign: 'center',
-        paddingTop: '50px',
-    },
-    card: {
-        maxWidth: '600px',
-        margin: 'auto',
-    },
 };
 
 export default TeacherDashboard;

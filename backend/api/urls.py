@@ -2,7 +2,7 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet
+from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet, S_GradeViewSet,TeacherViewSet  # 添加 GradeViewSet
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -11,6 +11,8 @@ from rest_framework_simplejwt.views import (
 router = DefaultRouter()
 router.register(r'course-prototypes', CoursePrototypeViewSet, basename='course-prototype')
 router.register(r'course-instances', CourseInstanceViewSet, basename='course-instance')
+router.register(r's-grades', S_GradeViewSet)  # 添加这一行
+router.register(r'teachers', TeacherViewSet)  # 添加这一行
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -16,7 +16,10 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Layout, Menu, Spin } from 'antd';
 import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
 import { AuthContext } from './contexts/AuthContext';
-
+import SetGradeWeights from './components/SetGradeWeights';
+import EnterGrades from './components/EnterGrades';
+import MyGrades from './components/MyGrades';
+import MyRankings from './components/MyRankings';
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
@@ -34,7 +37,7 @@ const App = () => {
     // 安全检查用户组
     const isStudent = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'student');
     const isTeacher = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'teacher');
-    
+
     // 调试输出
     console.log('当前用户:', user);
     console.log('是否为学生:', isStudent);
@@ -58,7 +61,12 @@ const App = () => {
                                 <Menu.Item key="3" icon={<ProfileOutlined />}>
                                     <Link to="/student-profile">学生资料</Link>
                                 </Menu.Item>
-
+                                <Menu.Item key="11" icon={<ProfileOutlined />}>
+                                    <Link to="/my-grades">我的成绩</Link>
+                                </Menu.Item>
+                                <Menu.Item key="12" icon={<CalendarOutlined />}>
+                                    <Link to="/my-rankings">我的排名</Link>
+                                </Menu.Item>
                                 {/* 使用 SubMenu 来包含“我的选课”下的子项 */}
                                 <SubMenu key="sub1" icon={<BookOutlined />} title="我的选课">
                                     <Menu.Item key="4">
@@ -78,6 +86,16 @@ const App = () => {
                             <>
                                 <Menu.Item key="7" icon={<UserOutlined />}>
                                     <Link to="/teacher-dashboard">老师仪表盘</Link>
+                                </Menu.Item>
+                                <Menu.Item key="8" icon={<UserOutlined />}>
+                                    <Link to="/teacher-dashboard">老师仪表盘</Link>
+                                </Menu.Item>
+                                {/* 添加新菜单项 */}
+                                <Menu.Item key="9" icon={<ProfileOutlined />}>
+                                    <Link to="/set-grade-weights">设置成绩占比</Link>
+                                </Menu.Item>
+                                <Menu.Item key="10" icon={<BookOutlined />}>
+                                    <Link to="/enter-grades">录入成绩</Link>
                                 </Menu.Item>
                                 {/* 老师的其他菜单项 */}
                             </>
@@ -132,6 +150,26 @@ const App = () => {
                         <Route path="/teacher-dashboard" element={
                             <RoleProtectedRoute roles={['Teacher']}>
                                 <TeacherDashboard />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/set-grade-weights" element={
+                            <RoleProtectedRoute roles={['Teacher']}>
+                                <SetGradeWeights />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/enter-grades" element={
+                            <RoleProtectedRoute roles={['Teacher']}>
+                                <EnterGrades />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/my-grades" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyGrades />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/my-rankings" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyRankings />
                             </RoleProtectedRoute>
                         } />
                         {/* 其他路由 */}

@@ -2,10 +2,10 @@
 
 from rest_framework import viewsets, permissions, mixins, generics
 from django.contrib.auth.models import User
-from .models import CoursePrototype, CourseInstance, Student
+from .models import CoursePrototype, CourseInstance, Student, Grade, Teacher,S_Grade
 from .serializers import (
     CoursePrototypeSerializer, CourseInstanceSerializer, CourseInstanceCreateUpdateSerializer,
-    UserSerializer,
+    UserSerializer,GradeSerializer,StudentSerializer,TeacherSerializer,S_GradeSerializer
 )
 from django.db import transaction
 from rest_framework import status
@@ -13,8 +13,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from django.utils import timezone
-from .permissions import IsStudentUser, IsTeacherUser, IsAdminUser
-
+from .permissions import IsStudentUser, IsTeacherUser, IsAdminUser, IsTeacherOfCourse, IsOwnerStudent
+from django.db.models import F, Window
+from django.db.models.functions import Rank
 
 class CoursePrototypeViewSet(viewsets.ModelViewSet):
     """
@@ -47,9 +48,32 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated, IsTeacherUser]
         elif self.action in ['finalize_selection', 'start_selection']:
             permission_classes = [IsAuthenticated, IsAdminUser]
+        elif self.action in ['set_grade_weights']:
+            permission_classes = [IsAuthenticated, IsTeacherUser, IsTeacherOfCourse]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated, IsTeacherUser, IsTeacherOfCourse])
+    def set_grade_weights(self, request, pk=None):
+        """
+        API: 设置成绩分数占比
+        """
+        course_instance = self.get_object()
+        daily_weight = request.data.get('daily_weight')
+        final_weight = request.data.get('final_weight')
+
+        if daily_weight is None or final_weight is None:
+            return Response({'detail': '平时分和期末分占比均为必填项'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if int(daily_weight) + int(final_weight) != 100:
+            return Response({'detail': '平时分和期末分的总和必须为100%'}, status=status.HTTP_400_BAD_REQUEST)
+
+        course_instance.daily_weight = daily_weight
+        course_instance.final_weight = final_weight
+        course_instance.save()
+
+        return Response({'detail': '成绩分数占比设置成功'}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
     def list_available_courses(self, request):
@@ -66,8 +90,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         available_courses = CourseInstance.objects.filter(
             selection_deadline__gte=now,
             is_finalized=False,
-            eligible_departments=student.grade.department,
-            eligible_grades=student.grade,
+            #eligible_departments=student.grade.department,
+            #eligible_grades=student.grade,
             eligible_classes=student.student_class
         ).exclude(
             selected_students=user
@@ -101,24 +125,26 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': '课程容量已满'}, status=status.HTTP_400_BAD_REQUEST)
         
         # 检查学生是否符合选课条件
-        if not course_instance.eligible_departments.filter(id=student.grade.department.id).exists():
-            return Response({'detail': '您所在学院无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
+        #if not course_instance.eligible_departments.filter(id=student.grade.department.id).exists():
+            #return Response({'detail': '您所在学院无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
-        if not course_instance.eligible_grades.filter(id=student.grade.id).exists():
-            return Response({'detail': '您所在年级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
+        #if not course_instance.eligible_grades.filter(id=student.grade.id).exists():
+            #return Response({'detail': '您所在年级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
         if not course_instance.eligible_classes.filter(id=student.student_class.id).exists():
             return Response({'detail': '您所在班级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
         # 检查时间冲突
-        student_selected_courses = CourseInstance.objects.filter(
-            selected_students=user,
-            day=course_instance.day,
-            period=course_instance.period,
-            is_finalized=False  # 只考虑未最终化的课程
-        )
-        if student_selected_courses.exists():
-            return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
+        course_schedules = course_instance.schedules.all()
+        for schedule in course_schedules:
+            conflict = CourseInstance.objects.filter(
+                selected_students=user,
+                is_finalized=False,
+                schedules__day=schedule.day,
+                schedules__period=schedule.period
+            ).exists()
+            if conflict:
+                return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
         
         with transaction.atomic():
             # 再次检查课程容量，防止并发问题
@@ -230,7 +256,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         
         selected_courses = CourseInstance.objects.filter(
             selected_students=user,
-            is_finalized=True  # 仅展示已最终化的选课
+            is_finalized=False  # 仅展示已最终化的选课
         )
 
         serializer = self.get_serializer(selected_courses, many=True)
@@ -292,3 +318,70 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class S_GradeViewSet(viewsets.ModelViewSet):
+    """
+    成绩管理的 ViewSet
+    """
+    queryset = S_Grade.objects.all()
+    serializer_class = S_GradeSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsTeacherUser, IsTeacherOfCourse]
+        elif self.action in ['retrieve', 'list']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name='Student').exists():
+            return S_Grade.objects.filter(student=user)
+        elif user.groups.filter(name='Teacher').exists():
+            return S_Grade.objects.filter(course_instance__department__in=user.departments.all())
+        return S_Grade.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsOwnerStudent])
+    def my_rankings(self, request):
+        user = request.user
+        grades = S_Grade.objects.filter(student=user).annotate(
+            rank=Window(
+                expression=Rank(),
+                partition_by=[F('course_instance')],
+                order_by=F('total_score').desc()
+            )
+        ).values('course_instance__course_prototype__name', 'course_instance__semester', 'total_score', 'rank')
+        
+        rankings = []
+        for grade in grades:
+            rankings.append({
+                'course_instance': f"{grade['course_instance__course_prototype__name']} - {grade['course_instance__semester']}",
+                'total_score': grade['total_score'],
+                'rank': grade['rank'],
+            })
+        return Response(rankings, status=status.HTTP_200_OK)
+
+
+class TeacherViewSet(viewsets.ModelViewSet):
+    """
+    教师管理的 ViewSet
+    """
+    queryset = Teacher.objects.all()
+    serializer_class = TeacherSerializer
+    permission_classes = [permissions.IsAuthenticated, IsTeacherUser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.groups.filter(name='Teacher').exists():
+            # 仅返回当前教师的配置文件
+            return Teacher.objects.filter(user=user)
+        return Teacher.objects.none()
+
+    def perform_update(self, serializer):
+        serializer.save()
