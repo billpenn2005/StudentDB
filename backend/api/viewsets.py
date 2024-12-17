@@ -66,8 +66,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         available_courses = CourseInstance.objects.filter(
             selection_deadline__gte=now,
             is_finalized=False,
-            eligible_departments=student.grade.department,
-            eligible_grades=student.grade,
+            #eligible_departments=student.grade.department,
+            #eligible_grades=student.grade,
             eligible_classes=student.student_class
         ).exclude(
             selected_students=user
@@ -101,24 +101,26 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': '课程容量已满'}, status=status.HTTP_400_BAD_REQUEST)
         
         # 检查学生是否符合选课条件
-        if not course_instance.eligible_departments.filter(id=student.grade.department.id).exists():
-            return Response({'detail': '您所在学院无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
+        #if not course_instance.eligible_departments.filter(id=student.grade.department.id).exists():
+            #return Response({'detail': '您所在学院无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
-        if not course_instance.eligible_grades.filter(id=student.grade.id).exists():
-            return Response({'detail': '您所在年级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
+        #if not course_instance.eligible_grades.filter(id=student.grade.id).exists():
+            #return Response({'detail': '您所在年级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
         if not course_instance.eligible_classes.filter(id=student.student_class.id).exists():
             return Response({'detail': '您所在班级无法选此课程'}, status=status.HTTP_403_FORBIDDEN)
         
         # 检查时间冲突
-        student_selected_courses = CourseInstance.objects.filter(
-            selected_students=user,
-            day=course_instance.day,
-            period=course_instance.period,
-            is_finalized=False  # 只考虑未最终化的课程
-        )
-        if student_selected_courses.exists():
-            return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
+        course_schedules = course_instance.schedules.all()
+        for schedule in course_schedules:
+            conflict = CourseInstance.objects.filter(
+                selected_students=user,
+                is_finalized=False,
+                schedules__day=schedule.day,
+                schedules__period=schedule.period
+            ).exists()
+            if conflict:
+                return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
         
         with transaction.atomic():
             # 再次检查课程容量，防止并发问题
@@ -230,7 +232,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         
         selected_courses = CourseInstance.objects.filter(
             selected_students=user,
-            is_finalized=True  # 仅展示已最终化的选课
+            is_finalized=False  # 仅展示已最终化的选课
         )
 
         serializer = self.get_serializer(selected_courses, many=True)

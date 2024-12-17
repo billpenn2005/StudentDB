@@ -10,6 +10,7 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('access_token'));
     const [user, setUser] = useState(null);
+    const [selectedCourses, setSelectedCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const location = useLocation(); // 获取当前路径
@@ -17,37 +18,63 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUser = async () => {
         try {
-            const response = await axiosInstance.get('user/current');
-            if (JSON.stringify(response.data) !== JSON.stringify(user)) {
-                setUser(response.data);
-            }
+            const response = await axiosInstance.get('user/current/');
+            setUser(response.data);
             setIsAuthenticated(true);
             console.log('Fetched User:', response.data); // Debug log
+            return response.data;
         } catch (err) {
             console.error(err);
             setIsAuthenticated(false);
+            setUser(null);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             toast.error('用户信息获取失败，请重新登录');
-        } finally {
-            setLoading(false);
+            return null;
         }
     };
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            fetchUser();
-        } else {
-            setLoading(false);
+    const fetchSelectedCourses = async () => {
+        try {
+            const response = await axiosInstance.get('course-instances/list_selected_courses/');
+            setSelectedCourses(response.data);
+            console.log('Fetched Selected Courses:', response.data); // Debug log
+        } catch (error) {
+            console.error('Failed to fetch selected courses:', error);
+            setSelectedCourses([]);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthenticated]); // Ensure dependencies are correctly set
+    };
 
-    const login = (accessToken, refreshToken) => {
+    // 初始化
+    useEffect(() => {
+        const initialize = async () => {
+            if (isAuthenticated) {
+                const fetchedUser = await fetchUser();
+                if (fetchedUser) {
+                    await fetchSelectedCourses();
+                }
+            }
+            setLoading(false);
+        };
+        initialize();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 监听用户变化，刷新已选课程
+    useEffect(() => {
+        if (user) {
+            fetchSelectedCourses();
+        }
+    }, [user]);
+
+    const login = async (accessToken, refreshToken) => {
         localStorage.setItem('access_token', accessToken);
         localStorage.setItem('refresh_token', refreshToken);
         setIsAuthenticated(true);
-        fetchUser();
+        const fetchedUser = await fetchUser();
+        if (fetchedUser) {
+            await fetchSelectedCourses();
+        }
     };
 
     const logout = () => {
@@ -55,6 +82,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
         setUser(null);
+        setSelectedCourses([]); // 清空已选课程
         toast.info('已注销');
         navigate('/'); // 重定向到首页
     };
@@ -78,7 +106,7 @@ export const AuthProvider = ({ children }) => {
     }, [user, navigate, location.pathname]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, setUser }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, setUser, selectedCourses, fetchSelectedCourses }}>
             {children}
         </AuthContext.Provider>
     );

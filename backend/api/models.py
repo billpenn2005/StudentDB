@@ -17,6 +17,8 @@ class CoursePrototype(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_prototypes')
+    credits = models.PositiveIntegerField(default=0)  # 添加学分字段
+
     # 其他课程基础属性
 
     def __str__(self):
@@ -45,8 +47,27 @@ class CourseInstance(models.Model):
     capacity = models.PositiveIntegerField()
     selection_deadline = models.DateTimeField()
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_instances')
+    
+    # 可选课的选课对象（班级）
+    #eligible_departments = models.ManyToManyField(Department, related_name='eligible_course_instances')
+    #eligible_grades = models.ManyToManyField(Grade, related_name='eligible_course_instances')
+    eligible_classes = models.ManyToManyField(Class, related_name='eligible_course_instances')
+    
+    # 已选学生
+    selected_students = models.ManyToManyField(User, related_name='course_selected_courses', blank=True)
+    
+    # 课程最终化标志
+    is_finalized = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.course_prototype.name} - {self.semester}"
+# backend/api/models.py
 
-    # 上课时间：一天5大节课中的某大节
+from django.db import models
+
+class CourseSchedule(models.Model):
+    course_instance = models.ForeignKey(CourseInstance, on_delete=models.CASCADE, related_name='schedules')
+    
     DAY_PERIOD_CHOICES = [
         ('Monday', '星期一'),
         ('Tuesday', '星期二'),
@@ -54,6 +75,7 @@ class CourseInstance(models.Model):
         ('Thursday', '星期四'),
         ('Friday', '星期五'),
     ]
+    
     PERIOD_CHOICES = [
         (1, '第一节'),
         (2, '第二节'),
@@ -61,22 +83,15 @@ class CourseInstance(models.Model):
         (4, '第四节'),
         (5, '第五节'),
     ]
+    
     day = models.CharField(max_length=10, choices=DAY_PERIOD_CHOICES)
     period = models.PositiveSmallIntegerField(choices=PERIOD_CHOICES)
-
-    # 可选课的选课对象（班级）
-    eligible_departments = models.ManyToManyField(Department, related_name='eligible_course_instances')
-    eligible_grades = models.ManyToManyField(Grade, related_name='eligible_course_instances')
-    eligible_classes = models.ManyToManyField(Class, related_name='eligible_course_instances')
-
-    # 已选学生
-    selected_students = models.ManyToManyField(User, related_name='course_selected_courses', blank=True)
-
-    # 课程最终化标志
-    is_finalized = models.BooleanField(default=False)
-
+    
+    class Meta:
+        unique_together = ('course_instance', 'day', 'period')  # 防止重复时间
+    
     def __str__(self):
-        return f"{self.course_prototype.name} - {self.semester}"
+        return f"{self.get_day_display()} 第{self.get_period_display()}节 - {self.course_instance}"
 
 class ClassInstance(models.Model):
     # 假设 ClassInstance 是不同于 CourseInstance 的一个模型，具体根据需求调整
@@ -101,7 +116,7 @@ class Student(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     id_number = models.CharField(max_length=18, unique=True)  # 身份证号码
     #major = models.CharField(max_length=100, default="NULL")  # 专业
-    #grade = models.PositiveIntegerField(default=0)  # 年级
+    grade = models.PositiveIntegerField(default=0)  # 年级
     
     def __str__(self):
         return self.user.get_full_name()

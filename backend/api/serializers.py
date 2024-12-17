@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Department, Grade, Class, CoursePrototype, CourseInstance, Student
+from .models import Department, Grade, Class, CoursePrototype, CourseInstance, Student, CourseSchedule
 from django.db import transaction
 #from django.contrib.auth import get_user_model
 
@@ -34,6 +34,12 @@ class CoursePrototypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoursePrototype
         fields = '__all__'
+# backend/api/serializers.py
+
+class CourseScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseSchedule
+        fields = ['id', 'day', 'period']
 
 class CourseInstanceSerializer(serializers.ModelSerializer):
     course_prototype = CoursePrototypeSerializer(read_only=True)
@@ -42,15 +48,59 @@ class CourseInstanceSerializer(serializers.ModelSerializer):
     eligible_grades = GradeSerializer(many=True, read_only=True)
     eligible_classes = ClassSerializer(many=True, read_only=True)
     selected_students = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    schedules = CourseScheduleSerializer(many=True, read_only=True)  # 新增字段
 
     class Meta:
         model = CourseInstance
         fields = '__all__'
+
+
 
 class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
+    schedules = CourseScheduleSerializer(many=True)
+    selected_students = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=User.objects.all(), required=False
+    )
+    eligible_classes = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Class.objects.all(), required=False
+    )
+
     class Meta:
         model = CourseInstance
         fields = '__all__'
+    
+    def create(self, validated_data):
+        schedules_data = validated_data.pop('schedules')
+        selected_students = validated_data.pop('selected_students', [])
+        eligible_classes = validated_data.pop('eligible_classes', [])
+        course_instance = CourseInstance.objects.create(**validated_data)
+        course_instance.selected_students.set(selected_students)
+        course_instance.eligible_classes.set(eligible_classes)
+        for schedule_data in schedules_data:
+            CourseSchedule.objects.create(course_instance=course_instance, **schedule_data)
+        return course_instance
+    
+    def update(self, instance, validated_data):
+        schedules_data = validated_data.pop('schedules', None)
+        selected_students = validated_data.pop('selected_students', None)
+        eligible_classes = validated_data.pop('eligible_classes', None)
+    
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+    
+        if schedules_data is not None:
+            instance.schedules.all().delete()
+            for schedule_data in schedules_data:
+                CourseSchedule.objects.create(course_instance=instance, **schedule_data)
+    
+        if selected_students is not None:
+            instance.selected_students.set(selected_students)
+                
+        if eligible_classes is not None:
+            instance.eligible_classes.set(eligible_classes)
+    
+        return instance
 
 class StudentSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
