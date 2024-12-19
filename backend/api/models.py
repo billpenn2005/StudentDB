@@ -48,6 +48,8 @@ class CoursePrototype(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_prototypes')
     credits = models.PositiveIntegerField(default=0)  # 添加学分字段
 
+    credits = models.PositiveIntegerField(default=0)  # 添加学分字段
+
     # 其他课程基础属性
 
     def __str__(self):
@@ -95,6 +97,7 @@ class Student(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     id_number = models.CharField(max_length=18, unique=True)  # 身份证号码
     #major = models.CharField(max_length=100, default="NULL")  # 专业
+    grade = models.PositiveIntegerField(default=0)  # 年级
     grade = models.PositiveIntegerField(default=0)  # 年级
     
     def __str__(self):
