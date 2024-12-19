@@ -106,7 +106,17 @@ export const AuthProvider = ({ children }) => {
     }, [user, navigate, location.pathname]);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading, setUser, selectedCourses, fetchSelectedCourses }}>
+        <AuthContext.Provider value={{
+            isAuthenticated,
+            user,
+            login,
+            logout,
+            loading,
+            setUser,
+            selectedCourses,
+            fetchSelectedCourses,
+            fetchUser // 添加 fetchUser 到 context
+        }}>
             {children}
         </AuthContext.Provider>
     );

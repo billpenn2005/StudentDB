@@ -134,3 +134,5 @@ SIMPLE_JWT = {
 
 # 自定义用户模型（如果有）
 # AUTH_USER_MODEL = 'api.CustomUser'
+DEBUG = True
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']

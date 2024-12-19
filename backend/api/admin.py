@@ -6,6 +6,7 @@ from .models import (
     Department, Teacher, CoursePrototype, Grade, Class, ClassInstance,
     Student, UserProfile, CourseInstance, CourseSchedule, S_Grade
 )
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 # 注册 Department 模型
 @admin.register(Department)
@@ -106,32 +107,35 @@ class S_GradeAdmin(admin.ModelAdmin):
     )
     list_filter = ('course_instance',)
 
-# 自定义 UserAdmin 以显示关联的 Teacher 或 Student 信息
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-
-class TeacherInline(admin.StackedInline):
-    model = Teacher
-    can_delete = False
-    verbose_name_plural = 'Teacher Profile'
-    filter_horizontal = ('departments',)
-
-class StudentInline(admin.StackedInline):
-    model = Student
-    can_delete = False
-    verbose_name_plural = 'Student Profile'
-
-class UserProfileInline(admin.StackedInline):
+class ReadOnlyUserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'User Profile'
+    readonly_fields = ('user',)
+    max_num = 1
+
+class ReadOnlyTeacherInline(admin.StackedInline):
+    model = Teacher
+    can_delete = False
+    verbose_name_plural = 'Teacher Profile'
+    readonly_fields = ('user',)
     filter_horizontal = ('departments',)
+    max_num = 1
+
+class ReadOnlyStudentInline(admin.StackedInline):
+    model = Student
+    can_delete = False
+    verbose_name_plural = 'Student Profile'
+    readonly_fields = ('user', 'department', 'student_class', 'grade', 'age', 'gender', 'id_number')
+    max_num = 1
 
 class CustomUserAdmin(BaseUserAdmin):
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_user_type')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
 
-    inlines = [UserProfileInline, TeacherInline, StudentInline]
+    # 使用只读内联，避免在 Admin 创建时自动创建关联模型
+    inlines = [ReadOnlyUserProfileInline, ReadOnlyTeacherInline, ReadOnlyStudentInline]
 
     def get_user_type(self, obj):
         if hasattr(obj, 'teacher_profile'):
@@ -145,3 +149,4 @@ class CustomUserAdmin(BaseUserAdmin):
 # 重新注册 UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+

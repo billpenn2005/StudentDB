@@ -11,22 +11,23 @@ from django.db import transaction
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = '__all__'
+        fields = ['id', 'name']
+
+class ClassSerializer(serializers.ModelSerializer):
+    grade = serializers.StringRelatedField()
+    department = serializers.StringRelatedField()
+    
+    class Meta:
+        model = Class
+        fields = ['id', 'name', 'grade', 'department']
 
 class GradeSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
+    department = serializers.StringRelatedField()
     
     class Meta:
         model = Grade
-        fields = '__all__'
+        fields = ['id', 'name', 'department']
 
-class ClassSerializer(serializers.ModelSerializer):
-    grade = GradeSerializer(read_only=True)
-    # 移除 department 字段，因为 Grade 已经关联到 Department
-
-    class Meta:
-        model = Class
-        fields = '__all__'
 
 class CoursePrototypeSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
@@ -45,11 +46,13 @@ class CourseScheduleSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.StringRelatedField(many=True, read_only=True)
     #selected_courses = CourseSelectionSerializer(many=True, read_only=True, source='course_selections')
+    teacher_id = serializers.SerializerMethodField()
+    student_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups']
-        read_only_fields = ['id', 'username', 'groups']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'groups', 'teacher_id', 'student_id']
+        read_only_fields = ['id', 'username', 'groups', 'teacher_id', 'student_id']
 
     def update(self, instance, validated_data):
         # 更新用户的基本信息
@@ -58,6 +61,18 @@ class UserSerializer(serializers.ModelSerializer):
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.save()
         return instance
+    
+    def get_teacher_id(self, obj):
+        try:
+            return obj.teacher_profile.id
+        except Teacher.DoesNotExist:
+            return None
+
+    def get_student_id(self, obj):
+        try:
+            return obj.student_profile.id
+        except Student.DoesNotExist:
+            return None
 
 class TeacherSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -150,13 +165,15 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
         return data
 
 class StudentSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
-    grade = GradeSerializer(read_only=True)
-    student_class = ClassSerializer(read_only=True)
-
+    user = UserSerializer(read_only=True)
+    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
+    student_class = serializers.PrimaryKeyRelatedField(queryset=Class.objects.all())
+    grade = serializers.PrimaryKeyRelatedField(queryset=Grade.objects.all())
+    
     class Meta:
         model = Student
-        fields = ['user', 'student_id', 'grade', 'student_class']
+        fields = ['id', 'user', 'department', 'student_class', 'grade', 'age', 'gender', 'id_number']
+        read_only_fields = ['department', 'student_class', 'grade', 'age', 'gender', 'id_number']  # 只允许更新邮箱
 
 
 class S_GradeSerializer(serializers.ModelSerializer):
@@ -168,26 +185,40 @@ class S_GradeSerializer(serializers.ModelSerializer):
     student_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(groups__name='Student'), source='student', write_only=True
     )
+    is_published = serializers.SerializerMethodField()
+    ranking = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = S_Grade
-        fields = ['id', 'student', 'student_id', 'course_instance', 'course_instance_id', 'daily_score', 'final_score', 'total_score']
+        fields = ['id', 'student', 'student_id', 'course_instance', 'course_instance_id', 'daily_score', 'final_score', 'total_score', 'is_published', 'ranking']
         read_only_fields = ['id', 'student', 'course_instance', 'total_score']
 
     def validate(self, data):
         # 确保教师只能给自己授课的课程实例打分
         user = self.context['request'].user
         course_instance = data.get('course_instance')
-        if not CourseInstance.objects.filter(id=course_instance.id, department__in=user.departments.all()).exists():
+        
+        if not hasattr(user, 'teacher_profile'):
+            raise serializers.ValidationError("用户没有教师配置文件。")
+        
+        if not CourseInstance.objects.filter(id=course_instance.id, teacher=user.teacher_profile).exists():
             raise serializers.ValidationError("您无权给该课程实例打分。")
         return data
 
     def create(self, validated_data):
-        return Grade.objects.create(**validated_data)
+        return S_Grade.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         instance.daily_score = validated_data.get('daily_score', instance.daily_score)
         instance.final_score = validated_data.get('final_score', instance.final_score)
         instance.save()
         return instance
+    
+    def get_is_published(self, obj):
+        return obj.course_instance.is_grades_published
+
+    def get_ranking(self, obj):
+        # 假设在queryset中已使用annotate标记了ranking字段
+        # ranking计算逻辑在ViewSet中实现
+        return getattr(obj, 'ranking', None)
 

@@ -1,89 +1,100 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Form, InputNumber, Button, Select, message } from 'antd';
+import React, { useEffect, useState, useContext } from 'react';
+import { Form, InputNumber, Button, Card, Spin } from 'antd';
 import axiosInstance from '../axiosInstance';
+import { toast } from 'react-toastify';
 import { AuthContext } from '../contexts/AuthContext';
 
-const { Option } = Select;
-
-const SetGradeWeights = () => {
+const SetGradeWeights = ({ courseInstanceId }) => {
     const [form] = Form.useForm();
-    const [courses, setCourses] = useState([]);
-    const { user } = useContext(AuthContext);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const { fetchUser } = useContext(AuthContext);
 
     useEffect(() => {
-        const fetchCourses = async () => {
+        const fetchWeights = async () => {
             try {
-                const response = await axiosInstance.get('course-instances/');
-                // 过滤出教师负责的课程实例
-                const teacherCourses = response.data.filter(course => 
-                    course.department.id === user.teacher_profile.departments[0].id // 假设教师至少关联一个部门
-                );
-                setCourses(teacherCourses);
+                const response = await axiosInstance.get(`course-instances/${courseInstanceId}/`);
+                form.setFieldsValue({
+                    daily_weight: response.data.daily_weight,
+                    final_weight: response.data.final_weight,
+                });
             } catch (error) {
-                console.error('Failed to fetch courses:', error);
-                message.error('获取课程失败');
+                console.error('Failed to fetch grade weights:', error);
+                toast.error('获取成绩占比失败');
+            } finally {
+                setLoading(false);
             }
         };
-        fetchCourses();
-    }, [user]);
+
+        fetchWeights();
+    }, [courseInstanceId, form]);
 
     const onFinish = async (values) => {
-        const { course_instance, daily_weight, final_weight } = values;
-        if (daily_weight + final_weight !== 100) {
-            message.error('平时分和期末分的总和必须为100%');
-            return;
-        }
+        setSubmitting(true);
         try {
-            await axiosInstance.patch(`course-instances/${course_instance}/set_grade_weights/`, {
-                daily_weight,
-                final_weight,
-            });
-            message.success('分数占比设置成功');
-            form.resetFields();
+            await axiosInstance.patch(`course-instances/${courseInstanceId}/set_grade_weights/`, values);
+            toast.success('成绩占比设置成功');
+            await fetchUser(); // 更新用户信息（如果需要）
         } catch (error) {
             console.error('Failed to set grade weights:', error);
-            message.error('设置分数占比失败');
+            const message = error.response?.data?.detail || '设置成绩占比失败';
+            toast.error(message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
+    if (loading) {
+        return <Spin tip="加载中..." />;
+    }
+
     return (
-        <div>
-            <h2>设置成绩分数占比</h2>
-            <Form form={form} layout="vertical" onFinish={onFinish}>
+        <Card title="设置成绩占比" style={{ marginBottom: '20px' }}>
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={onFinish}
+                initialValues={{
+                    daily_weight: 50,
+                    final_weight: 50,
+                }}
+            >
                 <Form.Item
-                    name="course_instance"
-                    label="选择课程实例"
-                    rules={[{ required: true, message: '请选择课程实例' }]}
-                >
-                    <Select placeholder="选择课程实例">
-                        {courses.map(course => (
-                            <Option key={course.id} value={course.id}>
-                                {course.course_prototype.name} - {course.semester}
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-                <Form.Item
-                    name="daily_weight"
                     label="平时分占比 (%)"
-                    rules={[{ required: true, message: '请输入平时分占比' }]}
+                    name="daily_weight"
+                    rules={[
+                        { required: true, message: '请输入平时分占比' },
+                        { type: 'number', min: 0, max: 100, message: '必须在0到100之间' },
+                    ]}
                 >
                     <InputNumber min={0} max={100} />
                 </Form.Item>
                 <Form.Item
-                    name="final_weight"
                     label="期末分占比 (%)"
-                    rules={[{ required: true, message: '请输入期末分占比' }]}
+                    name="final_weight"
+                    rules={[
+                        { required: true, message: '请输入期末分占比' },
+                        { type: 'number', min: 0, max: 100, message: '必须在0到100之间' },
+                        ({ getFieldValue }) => ({
+                            validator(_, value) {
+                                const daily = getFieldValue('daily_weight') || 0;
+                                if (daily + value === 100) {
+                                    return Promise.resolve();
+                                }
+                                return Promise.reject(new Error('平时分和期末分的总和必须为100%'));
+                            },
+                        }),
+                    ]}
                 >
                     <InputNumber min={0} max={100} />
                 </Form.Item>
                 <Form.Item>
-                    <Button type="primary" htmlType="submit">
+                    <Button type="primary" htmlType="submit" loading={submitting}>
                         设置占比
                     </Button>
                 </Form.Item>
             </Form>
-        </div>
+        </Card>
     );
 };
 

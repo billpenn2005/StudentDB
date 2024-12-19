@@ -14,6 +14,7 @@ const MyRankings = () => {
         try {
             const response = await axiosInstance.get('/s-grades/my_rankings/');
             setRankings(response.data);
+            console.log('Rankings:', response.data);
         } catch (error) {
             console.error('Failed to fetch rankings:', error);
             message.error('获取排名失败');

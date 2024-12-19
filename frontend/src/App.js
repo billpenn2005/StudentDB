@@ -1,7 +1,8 @@
-// src/App.js
-
 import React, { useContext } from 'react';
 import { Route, Routes, Navigate, Link } from 'react-router-dom';
+import { Layout, Menu, Spin } from 'antd';
+import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
+
 import Home from './components/Home';
 import StudentDashboard from './components/StudentDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
@@ -11,21 +12,23 @@ import CourseSelection from './components/CourseSelection';
 import Timetable from './components/Timetable';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import Logout from './components/Logout';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { Layout, Menu, Spin } from 'antd';
-import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
-import { AuthContext } from './contexts/AuthContext';
 import SetGradeWeights from './components/SetGradeWeights';
 import EnterGrades from './components/EnterGrades';
 import MyGrades from './components/MyGrades';
 import MyRankings from './components/MyRankings';
+import ManageGrades from './components/ManageGrades';
+
+import { AuthContext } from './contexts/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
 const App = () => {
     const { isAuthenticated, user, loading } = useContext(AuthContext);
 
+    // 加载中状态
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -34,14 +37,10 @@ const App = () => {
         );
     }
 
-    // 安全检查用户组
-    const isStudent = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'student');
-    const isTeacher = user && user.groups && user.groups.some(group => group.trim().toLowerCase() === 'teacher');
-
-    // 调试输出
-    console.log('当前用户:', user);
-    console.log('是否为学生:', isStudent);
-    console.log('是否为教师:', isTeacher);
+    // 用户组判断逻辑
+    const userGroups = user?.groups?.map(g => g.trim().toLowerCase()) || [];
+    const isStudent = userGroups.includes('student');
+    const isTeacher = userGroups.includes('teacher');
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -49,6 +48,7 @@ const App = () => {
                 <Sider collapsible>
                     <div className="logo" style={{ height: '32px', margin: '16px', background: 'rgba(255, 255, 255, 0.3)' }} />
                     <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
+
                         <Menu.Item key="1" icon={<HomeOutlined />}>
                             <Link to="/">首页</Link>
                         </Menu.Item>
@@ -67,7 +67,6 @@ const App = () => {
                                 <Menu.Item key="12" icon={<CalendarOutlined />}>
                                     <Link to="/my-rankings">我的排名</Link>
                                 </Menu.Item>
-                                {/* 使用 SubMenu 来包含“我的选课”下的子项 */}
                                 <SubMenu key="sub1" icon={<BookOutlined />} title="我的选课">
                                     <Menu.Item key="4">
                                         <Link to="/my-courses">已选课程</Link>
@@ -85,43 +84,40 @@ const App = () => {
                         {isTeacher && (
                             <>
                                 <Menu.Item key="7" icon={<UserOutlined />}>
-                                    <Link to="/teacher-dashboard">老师仪表盘</Link>
+                                    <Link to="/teacher-dashboard">教师仪表盘</Link>
                                 </Menu.Item>
-                                <Menu.Item key="8" icon={<UserOutlined />}>
-                                    <Link to="/teacher-dashboard">老师仪表盘</Link>
+
+                                <Menu.Item key="13">
+                                    <Link to="/manage-grades/1">管理成绩</Link>
                                 </Menu.Item>
-                                {/* 添加新菜单项 */}
                                 <Menu.Item key="9" icon={<ProfileOutlined />}>
                                     <Link to="/set-grade-weights">设置成绩占比</Link>
                                 </Menu.Item>
                                 <Menu.Item key="10" icon={<BookOutlined />}>
                                     <Link to="/enter-grades">录入成绩</Link>
                                 </Menu.Item>
-                                {/* 老师的其他菜单项 */}
                             </>
                         )}
 
-                        <Menu.Item key="8" icon={<LogoutOutlined />}>
+                        <Menu.Item key="14" icon={<LogoutOutlined />}>
                             <Logout />
                         </Menu.Item>
                     </Menu>
                 </Sider>
             )}
+
             <Layout>
                 {isAuthenticated && (
                     <Header style={{ background: '#fff', padding: 0, textAlign: 'right', paddingRight: '20px' }}>
                         {user && <span>欢迎, {user.first_name}</span>}
                     </Header>
                 )}
+
                 <Content style={{ margin: '16px' }}>
-                    {/* 显示用户组信息（调试用，完成后可移除） */}
-                    {user && (
-                        <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                            <strong>用户组:</strong> {user.groups.map(group => group.name).join(', ')}
-                        </div>
-                    )}
                     <Routes>
                         <Route path="/" element={<Home />} />
+
+                        {/* 学生端路由 */}
                         <Route path="/student-dashboard" element={
                             <RoleProtectedRoute roles={['Student']}>
                                 <StudentDashboard />
@@ -147,6 +143,18 @@ const App = () => {
                                 <Timetable />
                             </RoleProtectedRoute>
                         } />
+                        <Route path="/my-grades" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyGrades />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/my-rankings" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyRankings />
+                            </RoleProtectedRoute>
+                        } />
+
+                        {/* 教师端路由 */}
                         <Route path="/teacher-dashboard" element={
                             <RoleProtectedRoute roles={['Teacher']}>
                                 <TeacherDashboard />
@@ -162,26 +170,22 @@ const App = () => {
                                 <EnterGrades />
                             </RoleProtectedRoute>
                         } />
-                        <Route path="/my-grades" element={
-                            <RoleProtectedRoute roles={['Student']}>
-                                <MyGrades />
+                        <Route path="/manage-grades/:courseInstanceId" element={
+                            <RoleProtectedRoute roles={['Teacher']}>
+                                <ManageGrades />
                             </RoleProtectedRoute>
                         } />
-                        <Route path="/my-rankings" element={
-                            <RoleProtectedRoute roles={['Student']}>
-                                <MyRankings />
-                            </RoleProtectedRoute>
-                        } />
-                        {/* 其他路由 */}
+
+                        {/* 未匹配的路由 */}
                         <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                 </Content>
+
                 <Footer style={{ textAlign: 'center' }}>学生管理系统 ©2024 Created by Your Name</Footer>
             </Layout>
             <ToastContainer />
         </Layout>
     );
-
 };
 
 export default App;

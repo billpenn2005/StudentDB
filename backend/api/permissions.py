@@ -1,7 +1,7 @@
 # api/permissions.py
 
 from rest_framework import permissions
-
+from .models import CourseInstance
 class IsAdminUser(permissions.BasePermission):
     """
     仅允许管理员用户访问
@@ -27,15 +27,15 @@ class IsStudentUser(permissions.BasePermission):
 
 class IsTeacherOfCourse(permissions.BasePermission):
     """
-    只有负责该课程实例的教师可以修改成绩
+    仅允许课程实例的教师进行某些操作
     """
 
     def has_object_permission(self, request, view, obj):
-        if not request.user.groups.filter(name='Teacher').exists():
+        # 确保 obj 是 CourseInstance 的实例
+        if not isinstance(obj, CourseInstance):
             return False
-        # 假设教师关联到部门，通过部门关联到课程实例
-        teacher_departments = request.user.teacher_profile.departments.all()
-        return obj.course_instance.department in teacher_departments
+        # 检查请求用户是否为该课程实例的教师
+        return obj.teacher == request.user.teacher_profile
 
 class IsOwnerStudent(permissions.BasePermission):
     """

@@ -2,7 +2,7 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet, S_GradeViewSet,TeacherViewSet  # 添加 GradeViewSet
+from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet, S_GradeViewSet,TeacherViewSet, DepartmentViewSet, ClassViewSet, GradeViewSet, CurrentStudentProfileView, GenerateStudentReportView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -13,6 +13,9 @@ router.register(r'course-prototypes', CoursePrototypeViewSet, basename='course-p
 router.register(r'course-instances', CourseInstanceViewSet, basename='course-instance')
 router.register(r's-grades', S_GradeViewSet)  # 添加这一行
 router.register(r'teachers', TeacherViewSet)  # 添加这一行
+router.register(r'departments', DepartmentViewSet)
+router.register(r'classes', ClassViewSet)
+router.register(r'grades', GradeViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -22,4 +25,7 @@ urlpatterns = [
     ])),
     path('token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('students/current/', CurrentStudentProfileView.as_view(), name='current-student-profile'),
+    path('generate-report/', GenerateStudentReportView.as_view(), name='generate-student-report'),
+
 ]

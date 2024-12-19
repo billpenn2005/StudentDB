@@ -108,13 +108,40 @@ const CourseSelection = () => {
         }
     };
 
+    // 退选功能
+    const handleUnenroll = async () => {
+        if (!selectedCourse) return;
+
+        setSubmitting(true);
+        try {
+            const response = await axiosInstance.post(`course-instances/${selectedCourse.id}/drop/`);
+            message.success(response.data.detail || '退选成功');
+            setModalVisible(false);
+            await fetchUser(); // 重新获取用户信息，更新已选课程
+            await fetchSelectedCourses(); // 重新获取已选课程
+            fetchCourses(); // 更新可选课程列表，可能课程容量已变化
+            // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
+        } catch (error) {
+            console.error(error);
+            if (error.response && error.response.data) {
+                // 处理多种错误信息
+                const errors = Object.values(error.response.data).flat();
+                message.error(errors.join(', ') || '退选失败');
+            } else {
+                message.error('退选失败');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     // 获取已选课程的时间槽ID，用于冲突检测
     const selectedTimeSlots = Array.isArray(selectedCourses)
-    ? selectedCourses.flatMap(sc => Array.isArray(sc.schedules) ? sc.schedules.map(schedule => ({
-        day: schedule.day,
-        period: schedule.period,
-    })) : [])
-    : [];
+        ? selectedCourses.flatMap(sc => Array.isArray(sc.schedules) ? sc.schedules.map(schedule => ({
+            day: schedule.day,
+            period: schedule.period,
+        })) : [])
+        : [];
 
     // 计算已选课程的总学分
     const totalCredits = Array.isArray(selectedCourses)
@@ -137,6 +164,7 @@ const CourseSelection = () => {
                     Array.isArray(sc.schedules) && sc.schedules.some(schedule => schedule.day === day && schedule.period === period)
                 );
                 row[day] = course ? {
+                    id: course.id, // 添加课程ID以便点击时使用
                     name: course.course_prototype.name,
                     group: course.group,
                     teacher: course.teacher,
@@ -166,7 +194,7 @@ const CourseSelection = () => {
             width: 200,
             render: (courseData) => (
                 courseData ? (
-                    <div>
+                    <div onClick={() => handleViewDetails(courseData)} style={{ cursor: 'pointer' }}>
                         <strong>{courseData.name}</strong>
                         <div>班级: {courseData.group}</div>
                         <div>教师: {courseData.teacher}</div>
@@ -197,6 +225,17 @@ const CourseSelection = () => {
                         bordered
                         size="small"
                         style={{ marginBottom: '20px' }}
+                        onRow={(record, rowIndex) => {
+                            return {
+                                onClick: (event) => {
+                                    // 点击行时，如果有课程，则显示详情
+                                    const clickedCourse = days.reduce((acc, day) => acc || record[day], null);
+                                    if (clickedCourse) {
+                                        handleViewDetails(clickedCourse);
+                                    }
+                                },
+                            };
+                        }}
                     />
                     <div style={{ textAlign: 'right', fontWeight: 'bold' }}>
                         总学分: {totalCredits}
@@ -243,21 +282,33 @@ const CourseSelection = () => {
                     <Button key="cancel" onClick={() => setModalVisible(false)} size="small">
                         取消
                     </Button>,
-                    <Button
-                        key="enroll"
-                        type="primary"
-                        onClick={() => handleEnroll()}
-                        disabled={
-                            // 检查是否有时间冲突
-                            courseDetails?.schedules?.some(cls =>
-                                selectedTimeSlots.some(slot => slot.day === cls.day && slot.period === cls.period)
-                            ) || false
-                        }
-                        loading={submitting}
-                        size="small"
-                    >
-                        选课
-                    </Button>,
+                    selectedCourses && selectedCourses.find(sc => sc.id === selectedCourse?.id) ? (
+                        <Button
+                            key="unenroll"
+                            type="danger"
+                            onClick={() => handleUnenroll()}
+                            loading={submitting}
+                            size="small"
+                        >
+                            退选
+                        </Button>
+                    ) : (
+                        <Button
+                            key="enroll"
+                            type="primary"
+                            onClick={() => handleEnroll()}
+                            disabled={
+                                // 检查是否有时间冲突
+                                courseDetails?.schedules?.some(cls =>
+                                    selectedTimeSlots.some(slot => slot.day === cls.day && slot.period === cls.period)
+                                ) || false
+                            }
+                            loading={submitting}
+                            size="small"
+                        >
+                            选课
+                        </Button>
+                    )
                 ]}
             >
                 {detailsLoading ? (
@@ -267,6 +318,7 @@ const CourseSelection = () => {
                         <p><strong>描述：</strong>{courseDetails.description}</p>
                         <p><strong>选择截止日期：</strong>{new Date(courseDetails.selection_deadline).toLocaleString()}</p>
                         <p><strong>是否最终化：</strong>{courseDetails.is_finalized ? '是' : '否'}</p>
+                        <p><strong>教师：</strong>{courseDetails.teacher}</p> {/* 确保显示教师 */}
                         <h4>上课时间</h4>
                         <List
                             dataSource={courseDetails.schedules || []}
@@ -293,16 +345,7 @@ const CourseSelection = () => {
                                             />
                                             {isFull && <Badge status="error" text="该班级已满" />}
                                             {isConflict && <Badge status="warning" text="时间冲突" />}
-                                            <Button
-                                                type="primary"
-                                                onClick={() => handleEnroll()}
-                                                disabled={isConflict || isFull}
-                                                style={{ marginTop: '10px' }}
-                                                loading={submitting}
-                                                size="small"
-                                            >
-                                                {isFull ? '已满' : isConflict ? '时间冲突' : '选课'}
-                                            </Button>
+                                            {/* 移除每个时间段的选课按钮 */}
                                         </Card>
                                     </List.Item>
                                 );

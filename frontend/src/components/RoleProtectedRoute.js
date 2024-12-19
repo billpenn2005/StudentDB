@@ -7,7 +7,7 @@ import { Spin } from 'antd';
 
 const RoleProtectedRoute = ({ children, roles }) => {
     const { isAuthenticated, user, loading } = useContext(AuthContext);
-    console.log(roles);
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -17,14 +17,25 @@ const RoleProtectedRoute = ({ children, roles }) => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/" />;
+        return <Navigate to="/" replace />;
     }
 
-    const userGroups = roles;
-    const hasRole = roles.some(role => userGroups.includes(role));
+    if (!user || !user.groups) {
+        // 如果用户信息不完整，重定向到首页或错误页面
+        return <Navigate to="/" replace />;
+    }
+
+    // 提取用户所属的组名称，并转换为小写以进行不区分大小写的比较
+    const userGroups = user.groups.map(group => group.toLowerCase());
+
+    // 转换允许的角色为小写
+    const allowedRoles = roles.map(role => role.toLowerCase());
+
+    // 检查用户是否拥有任何一个允许的角色
+    const hasRole = allowedRoles.some(role => userGroups.includes(role));
 
     if (!hasRole) {
-        return <Navigate to="/" />;
+        return <Navigate to="/" replace />;
     }
 
     return children;

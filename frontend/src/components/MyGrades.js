@@ -1,84 +1,82 @@
-// src/components/MyGrades.js
-
-import React, { useContext, useEffect, useState } from 'react';
-import { AuthContext } from '../contexts/AuthContext';
-import { Table, Spin, message } from 'antd';
+import React, { useEffect, useState, useContext } from 'react';
+import { Table, Spin, Typography } from 'antd';
 import axiosInstance from '../axiosInstance';
+import { AuthContext } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
 
-const MyGrades = () => {
-    const { user } = useContext(AuthContext);
-    const [grades, setGrades] = useState([]);
-    const [loading, setLoading] = useState(true);
+const { Title } = Typography;
 
-    const fetchGrades = async () => {
-        try {
-            const response = await axiosInstance.get('/s-grades/');
-            // 根据后端是否启用分页选择正确的数据
-            const data = response.data.results || response.data;
-            console.log('Grades API Response:', data); // 调试日志
+const StudentGradesAndRanking = () => {
+  const { user } = useContext(AuthContext);
+  const [loading, setLoading] = useState(true);
+  const [rankings, setRankings] = useState([]);
 
-            if (!Array.isArray(data)) {
-                throw new TypeError('Expected grades data to be an array');
-            }
-            setGrades(data);
-        } catch (error) {
-            console.error('Failed to fetch grades:', error);
-            message.error('获取成绩失败');
-        } finally {
-            setLoading(false);
-        }
+  useEffect(() => {
+    const fetchRankings = async () => {
+      try {
+        // 调用 my_rankings API
+        const res = await axiosInstance.get('s-grades/my_rankings/');
+        const rank = res.data.results || res.data;
+        setRankings(rank);
+        console.log('Rankings:', rank);
+      } catch (error) {
+        console.error('Error fetching rankings:', error);
+        toast.error('获取成绩和排名失败');
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchRankings();
+  }, []);
 
-    useEffect(() => {
-        fetchGrades();
-    }, []);
-
-    const columns = [
-        {
-            title: '课程名称',
-            dataIndex: 'course_instance',
-            key: 'course_name',
-        },
-        {
-            title: '学期',
-            dataIndex: 'course_instance',
-            key: 'semester',
-        },
-        
-        {
-            title: '平时分',
-            dataIndex: 'daily_score',
-            key: 'daily_score',
-        },
-        {
-            title: '期末分',
-            dataIndex: 'final_score',
-            key: 'final_score',
-        },
-        {
-            title: '总分',
-            dataIndex: 'total_score',
-            key: 'total_score',
-        },
-    ];
-
-    if (loading) {
-        return <Spin tip="加载中..." />;
+  const columns = [
+    {
+      title: '课程名称 - 学期',
+      dataIndex: 'course_instance',
+      key: 'course_instance',
+      render: (text) => text || 'N/A',
+    },
+    {
+      title: '平时分',
+      dataIndex: 'daily_score',
+      key: 'daily_score',
+      render: (score) => score !== null ? score : '未发布',
+    },
+    {
+      title: '期末分',
+      dataIndex: 'final_score',
+      key: 'final_score',
+      render: (score) => score !== null ? score : '未发布',
+    },
+    {
+      title: '总分',
+      dataIndex: 'total_score',
+      key: 'total_score',
+      render: (score) => score !== null ? score : '未发布',
+    },
+    {
+      title: '排名',
+      dataIndex: 'rank',
+      key: 'rank',
+      render: (rank) => rank !== null ? rank : '未发布',
     }
+  ];
 
-    return (
-        <div>
-            <h1>我的成绩</h1>
-            <Table
-                dataSource={grades}
-                columns={columns}
-                rowKey="id"
-                pagination={{
-                    pageSize: 10,
-                }}
-            />
-        </div>
-    );
+  if (loading) {
+    return <Spin tip="加载中..." style={{ display: 'block', margin: '100px auto' }} />;
+  }
+
+  return (
+    <div>
+      <Title level={2}>我的成绩和排名</Title>
+      <Table
+        dataSource={rankings}
+        columns={columns}
+        rowKey={(record, index) => `${record.course_instance}-${index}`}
+        pagination={false}
+      />
+    </div>
+  );
 };
 
-export default MyGrades;
+export default StudentGradesAndRanking;
