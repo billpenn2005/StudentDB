@@ -29,21 +29,27 @@ const ManageGrades = () => {
                 const students = studentsRes.data || [];
 
                 // 获取已有成绩数据
-                // S_Grade表中，如果已存在会返回对应成绩，如未存在则需要创建空白数据结构
                 const gradesRes = await axiosInstance.get(`s-grades/?course_instance=${courseInstanceId}`);
                 const existingGrades = gradesRes.data.results || [];
 
-                // 将学生列表与成绩数据关联
+                // 获取权重
+                const dailyWeight = courseRes.data.daily_weight;
+                const finalWeight = courseRes.data.final_weight;
+
+                // 将学生列表与成绩数据关联，并计算加权总分
                 const mergedData = students.map(stu => {
                     const gradeItem = existingGrades.find(g => g.student === stu.username);
+                    const daily_score = gradeItem ? parseFloat(gradeItem.daily_score) : 0.00;
+                    const final_score = gradeItem ? parseFloat(gradeItem.final_score) : 0.00;
+                    const weightedTotal = (daily_score * (dailyWeight / 100)) + (final_score * (finalWeight / 100));
                     return {
                         student_id: stu.id,
                         username: stu.username,
                         first_name: stu.first_name,
                         last_name: stu.last_name,
-                        daily_score: gradeItem ? parseFloat(gradeItem.daily_score) : 0.00,
-                        final_score: gradeItem ? parseFloat(gradeItem.final_score) : 0.00,
-                        total_score: gradeItem ? parseFloat(gradeItem.total_score) : 0.00,
+                        daily_score,
+                        final_score,
+                        total_score: weightedTotal,
                     };
                 });
 
@@ -52,8 +58,8 @@ const ManageGrades = () => {
 
                 // 设置表单初始值
                 weightsForm.setFieldsValue({
-                    daily_weight: courseRes.data.daily_weight,
-                    final_weight: courseRes.data.final_weight,
+                    daily_weight: dailyWeight,
+                    final_weight: finalWeight,
                 });
             } catch (error) {
                 console.error('Error fetching course or student data:', error);
@@ -79,8 +85,23 @@ const ManageGrades = () => {
                 final_weight
             });
             toast.success('成绩占比设置成功');
-            //刷新页面
-            window.location.reload();
+            
+            // 更新本地状态中的权重
+            setCourseInstance(prev => ({
+                ...prev,
+                daily_weight,
+                final_weight
+            }));
+
+            // 重新计算所有学生的 total_score
+            const updatedGradesData = gradesData.map(g => ({
+                ...g,
+                total_score: (g.daily_score * (daily_weight / 100)) + (g.final_score * (final_weight / 100))
+            }));
+            setGradesData(updatedGradesData);
+
+            // 如果不想刷新页面，可以移除以下行
+            // window.location.reload();
         } catch (error) {
             console.error('Error setting grade weights:', error);
             toast.error('设置成绩占比失败');
@@ -241,7 +262,6 @@ const ManageGrades = () => {
                 <Button type="primary" onClick={handlewithdrawGrades}>撤回成绩</Button>
                 <span style={{ margin: '0 8px' }} />
                 <Button>导出成绩</Button>
-
             </div>
         </div>
     );
