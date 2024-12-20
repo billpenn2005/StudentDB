@@ -237,7 +237,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except CourseInstance.DoesNotExist:
             return Response({'detail': '课程实例不存在。'}, status=status.HTTP_404_NOT_FOUND)
-
+        
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsTeacherUser])
     def retrieve_course_details(self, request, pk=None):
         """
         API 5: 获取某课程的详细信息

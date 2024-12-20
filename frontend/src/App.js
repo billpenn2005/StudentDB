@@ -74,9 +74,6 @@ const App = () => {
                                     <Menu.Item key="5">
                                         <Link to="/course-selection">选课</Link>
                                     </Menu.Item>
-                                    <Menu.Item key="6">
-                                        <Link to="/timetable">目前课表</Link>
-                                    </Menu.Item>
                                 </SubMenu>
                             </>
                         )}
@@ -89,12 +86,6 @@ const App = () => {
 
                                 <Menu.Item key="13">
                                     <Link to="/manage-grades/1">管理成绩</Link>
-                                </Menu.Item>
-                                <Menu.Item key="9" icon={<ProfileOutlined />}>
-                                    <Link to="/set-grade-weights">设置成绩占比</Link>
-                                </Menu.Item>
-                                <Menu.Item key="10" icon={<BookOutlined />}>
-                                    <Link to="/enter-grades">录入成绩</Link>
                                 </Menu.Item>
                             </>
                         )}

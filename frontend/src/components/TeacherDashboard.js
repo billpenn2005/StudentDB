@@ -64,16 +64,6 @@ const TeacherDashboard = () => {
           <Link to={`/manage-grades/${record.id}`}>
             <Button type="primary">管理成绩</Button>
           </Link>
-
-          {/* 设置成绩占比页面 */}
-          <Link to="/set-grade-weights">
-            <Button>设置成绩占比</Button>
-          </Link>
-
-          {/* 录入成绩页面 */}
-          <Link to="/enter-grades">
-            <Button>录入成绩</Button>
-          </Link>
         </div>
       )
     }

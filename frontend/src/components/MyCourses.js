@@ -1,4 +1,4 @@
-// src/components/SelectedCourses.js
+// src/components/MyCourses.js
 
 import React, { useEffect, useContext, useState } from 'react';
 import { List, Card, Button, Spin, Modal, message } from 'antd';
@@ -17,10 +17,11 @@ const SelectedCourses = () => {
             setLoading(false);
         };
         loadSelectedCourses();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [fetchSelectedCourses]);
 
     const handleUnenroll = (course) => {
+        console.log('Unenrolling from course:', course.teacher?.user?.first_name);
+
         Modal.confirm({
             title: '确认退选',
             content: `您确定要退选课程 "${course.course_prototype.name}" 吗？`,
@@ -68,7 +69,12 @@ const SelectedCourses = () => {
                                 size="small"
                             >
                                 <p><strong>描述：</strong> {course.description}</p>
-                                <p><strong>教师：</strong> {course.teacher}</p>
+                                <p>
+                                    <strong>教师：</strong> 
+                                    {course.teacher && course.teacher.user 
+                                        ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` 
+                                        : '未知'}
+                                </p>
                                 <p><strong>班级：</strong> {course.group}</p>
                                 <Button
                                     type="danger"

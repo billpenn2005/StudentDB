@@ -113,7 +113,7 @@ const ManageGrades = () => {
             toast.success('成绩发布成功');
         } catch (error) {
             console.error('Error publishing grades:', error);
-            toast.error('成绩发布失败');
+            toast.error(error.response?.data?.detail || '成绩发布失败');
         }
     };
 
@@ -123,7 +123,7 @@ const ManageGrades = () => {
             toast.success('成绩撤回成功');
         } catch (error) {
             console.error('Error withdrawing grades:', error);
-            toast.error('成绩撤回失败');
+            toast.error(error.response?.data?.detail || '成绩撤回失败');
         }
     };
 
@@ -141,7 +141,7 @@ const ManageGrades = () => {
             toast.success('成绩更新成功');
         } catch (error) {
             console.error('Error updating grades:', error);
-            toast.error('成绩更新失败');
+            toast.error(error.response?.data?.detail || '成绩更新失败');
         }
     };
 

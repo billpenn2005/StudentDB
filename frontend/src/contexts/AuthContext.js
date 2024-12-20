@@ -1,6 +1,4 @@
-// src/contexts/AuthContext.js
-
-import React, { createContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-toastify';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -16,7 +14,7 @@ export const AuthProvider = ({ children }) => {
     const location = useLocation(); // 获取当前路径
     const hasNavigated = useRef(false); // Ref to track navigation
 
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async () => {
         try {
             const response = await axiosInstance.get('user/current/');
             setUser(response.data);
@@ -32,9 +30,9 @@ export const AuthProvider = ({ children }) => {
             toast.error('用户信息获取失败，请重新登录');
             return null;
         }
-    };
+    }, []);
 
-    const fetchSelectedCourses = async () => {
+    const fetchSelectedCourses = useCallback(async () => {
         try {
             const response = await axiosInstance.get('course-instances/list_selected_courses/');
             setSelectedCourses(response.data);
@@ -43,7 +41,7 @@ export const AuthProvider = ({ children }) => {
             console.error('Failed to fetch selected courses:', error);
             setSelectedCourses([]);
         }
-    };
+    }, []);
 
     // 初始化
     useEffect(() => {
@@ -57,15 +55,14 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         };
         initialize();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isAuthenticated, fetchUser, fetchSelectedCourses]);
 
     // 监听用户变化，刷新已选课程
     useEffect(() => {
         if (user) {
             fetchSelectedCourses();
         }
-    }, [user]);
+    }, [user, fetchSelectedCourses]);
 
     const login = async (accessToken, refreshToken) => {
         localStorage.setItem('access_token', accessToken);

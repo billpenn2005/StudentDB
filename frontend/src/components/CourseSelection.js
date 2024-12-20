@@ -37,6 +37,7 @@ const CourseSelection = () => {
     }, []);
 
     useEffect(() => {
+        console.log('selectedCourses changed:', selectedCourses);
         if (!authLoading) {
             generateTimetable();
         }
@@ -57,7 +58,7 @@ const CourseSelection = () => {
                 message.error('获取课程列表失败，数据格式错误');
             }
         } catch (error) {
-            console.error(error);
+            console.error('Fetch Courses Error:', error);
             message.error('获取课程列表失败');
         } finally {
             setLoading(false);
@@ -71,9 +72,10 @@ const CourseSelection = () => {
         setDetailsLoading(true);
         try {
             const response = await axiosInstance.get(`course-instances/${course.id}/retrieve_course_details/`);
+            console.log('Course Details Response:', response); // Debug log
             setCourseDetails(response.data);
         } catch (error) {
-            console.error(error);
+            console.error('Fetch Course Details Error:', error);
             message.error('获取课程详情失败');
             setModalVisible(false);
         } finally {
@@ -88,14 +90,15 @@ const CourseSelection = () => {
         setSubmitting(true);
         try {
             const response = await axiosInstance.post(`course-instances/${selectedCourse.id}/enroll/`);
+            console.log('Enroll Response:', response.data); // Debug log
             message.success(response.data.detail || '选课成功');
             setModalVisible(false);
             await fetchUser(); // 重新获取用户信息，更新已选课程
             await fetchSelectedCourses(); // 重新获取已选课程
-            fetchCourses(); // 更新可选课程列表，可能课程容量已变化
+            await fetchCourses(); // 更新可选课程列表，可能课程容量已变化
             // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
         } catch (error) {
-            console.error(error);
+            console.error('Enroll Error:', error);
             if (error.response && error.response.data) {
                 // 处理多种错误信息
                 const errors = Object.values(error.response.data).flat();
@@ -109,20 +112,20 @@ const CourseSelection = () => {
     };
 
     // 退选功能
-    const handleUnenroll = async () => {
-        if (!selectedCourse) return;
+    const handleUnenroll = async (course) => { // 接受一个 course 参数
+        if (!course) return;
 
         setSubmitting(true);
         try {
-            const response = await axiosInstance.post(`course-instances/${selectedCourse.id}/drop/`);
+            const response = await axiosInstance.post(`course-instances/${course.id}/drop/`); // 确保端点正确
+            console.log('Unenroll Response:', response.data); // Debug log
             message.success(response.data.detail || '退选成功');
             setModalVisible(false);
             await fetchUser(); // 重新获取用户信息，更新已选课程
             await fetchSelectedCourses(); // 重新获取已选课程
-            fetchCourses(); // 更新可选课程列表，可能课程容量已变化
-            // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
+            await fetchCourses(); // 更新可选课程列表，可能课程容量已变化
         } catch (error) {
-            console.error(error);
+            console.error('Unenroll Error:', error);
             if (error.response && error.response.data) {
                 // 处理多种错误信息
                 const errors = Object.values(error.response.data).flat();
@@ -143,6 +146,8 @@ const CourseSelection = () => {
         })) : [])
         : [];
 
+    console.log('Selected Time Slots:', selectedTimeSlots); // Debug log
+
     // 计算已选课程的总学分
     const totalCredits = Array.isArray(selectedCourses)
         ? selectedCourses.reduce((sum, course) => sum + (course.course_prototype.credits || 0), 0)
@@ -150,7 +155,7 @@ const CourseSelection = () => {
 
     // 生成课表数据
     const generateTimetable = () => {
-        console.log('Selected Courses:', selectedCourses); // 调试日志
+        console.log('Generating Timetable with Selected Courses:', selectedCourses); // Debug log
         if (!Array.isArray(selectedCourses)) {
             setTimetableData([]);
             return;
@@ -159,21 +164,20 @@ const CourseSelection = () => {
         const data = periods.map(period => {
             const row = { key: period, period: `${period}节` };
             days.forEach(day => {
-                // 查找在该天和节次上有课程的课程实例
                 const course = selectedCourses.find(sc => 
                     Array.isArray(sc.schedules) && sc.schedules.some(schedule => schedule.day === day && schedule.period === period)
                 );
                 row[day] = course ? {
-                    id: course.id, // 添加课程ID以便点击时使用
+                    id: course.id, // 确保包含课程ID
                     name: course.course_prototype.name,
                     group: course.group,
-                    teacher: course.teacher,
+                    teacher: course.teacher?.user?.first_name ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知', // 使用可选链并提供默认值
                 } : null;
             });
             return row;
         });
         setTimetableData(data);
-        console.log('Timetable Data:', data); // 调试日志
+        console.log('Timetable Data:', data); // Debug log
     };
 
     // 定义课表的列
@@ -197,7 +201,7 @@ const CourseSelection = () => {
                     <div onClick={() => handleViewDetails(courseData)} style={{ cursor: 'pointer' }}>
                         <strong>{courseData.name}</strong>
                         <div>班级: {courseData.group}</div>
-                        <div>教师: {courseData.teacher}</div>
+                        <div>教师: {courseData.teacher}</div> {/* 确保 teacher 是字符串 */}
                     </div>
                 ) : null
             )
@@ -216,6 +220,7 @@ const CourseSelection = () => {
         <div style={{ padding: '20px' }}>
             <h2>选课系统</h2>
             <Row gutter={[16, 16]}>
+                {/* 课表部分 */}
                 <Col xs={24} md={16}>
                     <h3>课表</h3>
                     <Table
@@ -241,6 +246,8 @@ const CourseSelection = () => {
                         总学分: {totalCredits}
                     </div>
                 </Col>
+
+                {/* 可选课程部分 */}
                 <Col xs={24} md={8}>
                     <h3>可选课程</h3>
                     <List
@@ -255,6 +262,8 @@ const CourseSelection = () => {
                                     size="small"
                                 >
                                     <p>{course.description}</p>
+                                    <p><strong>教师：</strong> {course.teacher?.user?.first_name && course.teacher?.user?.last_name ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知'}</p> {/* 使用可选链并提供默认值 */}
+                                    <p><strong>班级：</strong> {course.group}</p>
                                     <Button
                                         type="primary"
                                         onClick={() => handleViewDetails(course)}
@@ -274,6 +283,44 @@ const CourseSelection = () => {
                 </Col>
             </Row>
 
+            {/* 已选课程部分 */}
+            <Row gutter={[16, 16]} style={{ marginTop: '40px' }}>
+                <Col xs={24}>
+                    <h3>已选课程</h3>
+                    {selectedCourses.length === 0 ? (
+                        <p>您当前没有选中的课程。</p>
+                    ) : (
+                        <List
+                            grid={{ gutter: 16, column: 1 }}
+                            dataSource={selectedCourses}
+                            renderItem={course => (
+                                <List.Item key={course.id}>
+                                    <Card
+                                        title={`${course.course_prototype.name} (${course.course_prototype.credits} 学分)`}
+                                        bordered={false}
+                                        style={{ width: '100%' }}
+                                        size="small"
+                                    >
+                                        <p>{course.description}</p>
+                                        <p><strong>教师：</strong> {course.teacher?.user?.first_name && course.teacher?.user?.last_name ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知'}</p> {/* 使用可选链并提供默认值 */}
+                                        <p><strong>班级：</strong> {course.group}</p>
+                                        <Button
+                                            type="danger"
+                                            onClick={() => handleUnenroll(course)}
+                                            loading={submitting}
+                                            size="small"
+                                        >
+                                            退选
+                                        </Button>
+                                    </Card>
+                                </List.Item>
+                            )}
+                        />
+                    )}
+                </Col>
+            </Row>
+
+            {/* 课程详情模态框 */}
             <Modal
                 title={courseDetails ? `课程详情 - ${courseDetails.course_prototype.name}` : '课程详情'}
                 visible={modalVisible}
@@ -286,7 +333,7 @@ const CourseSelection = () => {
                         <Button
                             key="unenroll"
                             type="danger"
-                            onClick={() => handleUnenroll()}
+                            onClick={() => handleUnenroll(selectedCourse)}
                             loading={submitting}
                             size="small"
                         >
@@ -298,10 +345,12 @@ const CourseSelection = () => {
                             type="primary"
                             onClick={() => handleEnroll()}
                             disabled={
-                                // 检查是否有时间冲突
+                                // 检查是否有时间冲突或课程已满或选课截止日期已过
                                 courseDetails?.schedules?.some(cls =>
                                     selectedTimeSlots.some(slot => slot.day === cls.day && slot.period === cls.period)
-                                ) || false
+                                ) ||
+                                courseDetails?.selected_students.length >= courseDetails?.capacity ||
+                                new Date(courseDetails?.selection_deadline) < new Date()
                             }
                             loading={submitting}
                             size="small"
@@ -318,7 +367,7 @@ const CourseSelection = () => {
                         <p><strong>描述：</strong>{courseDetails.description}</p>
                         <p><strong>选择截止日期：</strong>{new Date(courseDetails.selection_deadline).toLocaleString()}</p>
                         <p><strong>是否最终化：</strong>{courseDetails.is_finalized ? '是' : '否'}</p>
-                        <p><strong>教师：</strong>{courseDetails.teacher}</p> {/* 确保显示教师 */}
+                        <p><strong>教师：</strong>{courseDetails.teacher?.user?.first_name && courseDetails.teacher?.user?.last_name ? `${courseDetails.teacher.user.first_name} ${courseDetails.teacher.user.last_name}` : '未知'}</p> {/* 使用可选链并提供默认值 */}
                         <h4>上课时间</h4>
                         <List
                             dataSource={courseDetails.schedules || []}
@@ -326,6 +375,8 @@ const CourseSelection = () => {
                                 const isConflict = selectedTimeSlots.some(slot => slot.day === schedule.day && slot.period === schedule.period);
                                 const isFull = courseDetails.selected_students.length >= courseDetails.capacity;
                                 const remaining = courseDetails.capacity - courseDetails.selected_students.length;
+
+                                console.log(`Schedule: ${schedule.day} 第${schedule.period}节, Conflict: ${isConflict}, Full: ${isFull}`); // Debug log
 
                                 return (
                                     <List.Item key={`${schedule.day}-${schedule.period}`}>
@@ -335,7 +386,7 @@ const CourseSelection = () => {
                                             style={{ width: '100%' }}
                                             size="small"
                                         >
-                                            <p><strong>教师：</strong>{courseDetails.teacher}</p>
+                                            <p><strong>教师：</strong>{courseDetails.teacher?.user?.first_name && courseDetails.teacher?.user?.last_name ? `${courseDetails.teacher.user.first_name} ${courseDetails.teacher.user.last_name}` : '未知'}</p> {/* 使用可选链并提供默认值 */}
                                             <p><strong>容量：</strong>{courseDetails.selected_students.length} / {courseDetails.capacity} ({remaining}剩余)</p>
                                             <Progress
                                                 percent={Math.round((courseDetails.selected_students.length / courseDetails.capacity) * 100)}
