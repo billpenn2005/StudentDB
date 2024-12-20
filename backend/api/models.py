@@ -50,6 +50,8 @@ class CoursePrototype(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='course_prototypes')
     credits = models.PositiveIntegerField(default=0)  # 添加学分字段
 
+    credits = models.PositiveIntegerField(default=0)  # 添加学分字段
+
     # 其他课程基础属性
 
     def __str__(self):
