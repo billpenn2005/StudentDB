@@ -17,7 +17,7 @@ const PunishmentRecords = () => {
 
     useEffect(() => {
         const fetchStudents = async () => {
-            try {
+            try { 
                 // 若后端已经做了限制，只返回教师部门的学生
                 const res = await axiosInstance.get('students/'); 
                 console.log('Students:', res.data.results);

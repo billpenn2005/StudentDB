@@ -23,6 +23,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ChangePassword from './components/ChangePassword';
 import PunishmentRecords from './components/PunishmentRecords';
+import MyPunishments from './components/MyPunishments';
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
@@ -69,6 +70,9 @@ const App = () => {
                                 <Menu.Item key="12" icon={<CalendarOutlined />}>
                                     <Link to="/my-rankings">我的排名</Link>
                                 </Menu.Item>
+                                <Menu.Item key="16" icon={<ProfileOutlined />}>
+                                    <Link to="/my-punishments">我的惩罚记录</Link>
+                                </Menu.Item>
                                 <SubMenu key="sub1" icon={<BookOutlined />} title="我的选课">
                                     <Menu.Item key="4">
                                         <Link to="/my-courses">已选课程</Link>
@@ -80,7 +84,7 @@ const App = () => {
                             </>
                         )}
                         {(isTeacher || isAdmin) && (
-                            <Menu.Item key="99">
+                            <Menu.Item key="22">
                                 <Link to="/punishments">奖惩管理</Link>
                             </Menu.Item>
                         )}
@@ -100,6 +104,9 @@ const App = () => {
                                 </Menu.Item>
                             </>
                         )}
+                        <Menu.Item key="15" icon={<ProfileOutlined />}>
+                            <Link to="/change-password">修改密码</Link>
+                        </Menu.Item>
 
                         <Menu.Item key="14" icon={<LogoutOutlined />}> 
                             <Logout />
@@ -156,6 +163,11 @@ const App = () => {
                                 <MyRankings />
                             </RoleProtectedRoute>
                         } />
+                        <Route path="/my-punishments" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyPunishments />
+                            </RoleProtectedRoute>
+                        } />
 
                         {/* 教师端路由 */}
                         <Route path="/teacher-dashboard" element={
@@ -186,6 +198,11 @@ const App = () => {
                             </RoleProtectedRoute>
                         }
                         />
+                        <Route path="/change-password" element={
+                            <RoleProtectedRoute roles={['Student', 'Teacher', 'Admin']}>
+                                <ChangePassword />
+                            </RoleProtectedRoute>
+                        } />
                         {/* 未匹配的路由 */}
                         <Route path="*" element={<Navigate to="/" />} />
                     </Routes>

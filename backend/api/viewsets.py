@@ -4,14 +4,14 @@ from rest_framework import viewsets, permissions, mixins, generics
 from django.contrib.auth.models import User
 from .models import (
     CoursePrototype, CourseInstance, Student, Grade, Teacher, S_Grade,
-    Semester, PunishmentRecord, RewardRecord, CourseSchedule
+    Semester, PunishmentRecord, RewardRecord, CourseSchedule, SelectionBatch
 )
 from .serializers import (
     CoursePrototypeSerializer, CourseInstanceSerializer, CourseInstanceCreateUpdateSerializer,
     UserSerializer, GradeSerializer, StudentSerializer, TeacherSerializer, S_GradeSerializer,
     SemesterSerializer, SemesterCreateUpdateSerializer,
     PunishmentRecordSerializer, RewardRecordSerializer,
-    PunishmentRecordCreateSerializer, RewardRecordCreateSerializer
+    PunishmentRecordCreateSerializer, RewardRecordCreateSerializer,SelectionBatchSerializer
 )
 from django.db import transaction
 from rest_framework import status
@@ -163,6 +163,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         """
         API 2: 选课
         """
+        
         user = request.user
         try:
             student = Student.objects.get(user=user)
@@ -358,6 +359,29 @@ from django.db.models.functions import DenseRank
 from django.db.models import Value
 from django.db.models import F, Value, IntegerField
 from django.db.models.functions import Coalesce
+
+class SelectionBatchViewSet(viewsets.ModelViewSet):
+    """
+    选课批次管理的 ViewSet
+    """
+    queryset = SelectionBatch.objects.all()
+    serializer_class = SelectionBatchSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def course_instances(self, request, pk=None):
+        """
+        获取特定选课批次的课程实例
+        """
+        try:
+            selection_batch = SelectionBatch.objects.get(pk=pk)
+        except SelectionBatch.DoesNotExist:
+            return Response({'detail': '选课批次不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        course_instances = selection_batch.course_instances.all()
+        serializer = CourseInstanceSerializer(course_instances, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class S_GradeViewSet(viewsets.ModelViewSet):
     """
     成绩管理的 ViewSet

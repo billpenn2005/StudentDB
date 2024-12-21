@@ -7,7 +7,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from .viewsets import BulkImportViewSet, GenerateReportView,ChangePasswordView,PunishmentRecordViewSet, RewardRecordViewSet
+from .viewsets import BulkImportViewSet, GenerateReportView,ChangePasswordView,PunishmentRecordViewSet, RewardRecordViewSet, SelectionBatchViewSet
 from .viewsets import StudentViewSet
 router = DefaultRouter()
 router.register(r'course-prototypes', CoursePrototypeViewSet, basename='course-prototype')
@@ -21,6 +21,7 @@ router.register(r'bulk-import', BulkImportViewSet, basename='bulk-import')
 router.register(r'punishment-record', PunishmentRecordViewSet, basename='punishment-record')
 router.register(r'reward-record', RewardRecordViewSet, basename='reward-record')
 router.register(r'students', StudentViewSet, basename='student')
+router.register(r'selection-batches', SelectionBatchViewSet, basename='selection-batch')
 
 urlpatterns = [
     path('', include(router.urls)),

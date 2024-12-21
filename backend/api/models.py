@@ -82,6 +82,15 @@ class Semester(models.Model):
 
     def __str__(self):
         return self.name
+    
+class SelectionBatch(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    start_selection_date = models.DateTimeField()
+    end_selection_date = models.DateTimeField()
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='selection_batches')
+
+    def __str__(self):
+        return f"{self.name} ({self.semester.name})"
 
 class CourseInstance(models.Model):
     course_prototype = models.ForeignKey(CoursePrototype, on_delete=models.CASCADE, related_name='instances')
@@ -99,8 +108,14 @@ class CourseInstance(models.Model):
     selected_students = models.ManyToManyField(User, related_name='selected_courses', blank=True)
     teacher = models.ForeignKey(Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='course_instances')
     is_finalized = models.BooleanField(default=False)
+    selection_batch = models.ForeignKey(SelectionBatch, on_delete=models.CASCADE, related_name='course_instances', null=True, blank=True)
 
     def save(self, *args, **kwargs):
+        # 当保存课程实例时，同步选课批次的时间
+        if self.selection_batch:
+            self.selection_deadline = self.selection_batch.end_selection_date
+            # 假设你有一个开始选课时间字段，可以类似设置
+            # self.selection_start_date = self.selection_batch.start_selection_date
         if self.daily_weight + self.final_weight != 100:
             raise ValueError("平时分和期末分的总和必须为100%")
         super().save(*args, **kwargs)
@@ -181,3 +196,5 @@ class RewardRecord(models.Model):
 
     def __str__(self):
         return f"{self.student.user.get_full_name()} - {self.get_type_display()}"
+
+

@@ -8,10 +8,22 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Department, Teacher, CoursePrototype, Grade, Class, ClassInstance,
     Student, UserProfile, CourseInstance, CourseSchedule, S_Grade,
-    Semester, PunishmentRecord, RewardRecord
+    Semester, PunishmentRecord, RewardRecord, SelectionBatch
 )
 
 # ============ 1. 定义 Resource 类（批量导入导出） ============
+
+class SelectionBatchResource(resources.ModelResource):
+    semester = fields.Field(
+        column_name='semester',
+        attribute='semester',
+        widget=widgets.ForeignKeyWidget(Semester, 'name')
+    )
+
+    class Meta:
+        model = SelectionBatch
+        import_id_fields = ('id',)
+        fields = ('id', 'name', 'start_selection_date', 'end_selection_date', 'semester')
 
 class GradeResource(resources.ModelResource):
     department = fields.Field(
@@ -429,6 +441,13 @@ class CustomUserAdmin(BaseUserAdmin):
         else:
             return "Other"
     get_user_type.short_description = 'User Type'
+
+@admin.register(SelectionBatch)
+class SelectionBatchAdmin(ImportExportModelAdmin):
+    resource_class = SelectionBatchResource
+    list_display = ('id', 'name', 'semester', 'start_selection_date', 'end_selection_date')
+    search_fields = ('name', 'semester__name')
+    list_filter = ('semester__name',)
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)

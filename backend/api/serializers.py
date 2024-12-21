@@ -4,12 +4,18 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Department, Grade, Class, CoursePrototype, CourseInstance, Student,
-    CourseSchedule, Teacher, S_Grade, Semester, PunishmentRecord, RewardRecord
+    CourseSchedule, Teacher, S_Grade, Semester, PunishmentRecord, RewardRecord, SelectionBatch
+
 )
 from django.db import transaction
 #from django.contrib.auth import get_user_model
 
 #User = get_user_model()
+
+class SelectionBatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SelectionBatch
+        fields = ['id', 'name', 'start_selection_date', 'end_selection_date', 'semester']
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -151,6 +157,13 @@ class CourseInstanceSerializer(serializers.ModelSerializer):
     teacher_id = serializers.PrimaryKeyRelatedField(
         queryset=Teacher.objects.all(), source='teacher', write_only=True, allow_null=True, required=False
     )
+    selection_batch = SelectionBatchSerializer(read_only=True)
+    selection_batch_id = serializers.PrimaryKeyRelatedField(
+        queryset=SelectionBatch.objects.all(),
+        source='selection_batch',
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = CourseInstance
@@ -168,6 +181,13 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
         queryset=Teacher.objects.all(), source='teacher', write_only=True, allow_null=True, required=False
     )
 
+    selection_batch_id = serializers.PrimaryKeyRelatedField(
+        queryset=SelectionBatch.objects.all(),
+        source='selection_batch',
+        write_only=True,
+        required=True
+    )
+
     class Meta:
         model = CourseInstance
         fields = '__all__'
@@ -176,7 +196,9 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
         schedules_data = validated_data.pop('schedules')
         selected_students = validated_data.pop('selected_students', [])
         eligible_classes = validated_data.pop('eligible_classes', [])
-        course_instance = CourseInstance.objects.create(**validated_data)
+
+        selection_batch = validated_data.pop('selection_batch')
+        course_instance = CourseInstance.objects.create(selection_batch=selection_batch, **validated_data)
         course_instance.selected_students.set(selected_students)
         course_instance.eligible_classes.set(eligible_classes)
         for schedule_data in schedules_data:
@@ -187,7 +209,9 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
         schedules_data = validated_data.pop('schedules', None)
         selected_students = validated_data.pop('selected_students', None)
         eligible_classes = validated_data.pop('eligible_classes', None)
-
+        selection_batch = validated_data.pop('selection_batch', None)
+        if selection_batch:
+            instance.selection_batch = selection_batch
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -270,3 +294,5 @@ class S_GradeSerializer(serializers.ModelSerializer):
         # ranking计算逻辑在ViewSet中实现
         return getattr(obj, 'ranking', None)
 
+
+# backend/api/serializers.py

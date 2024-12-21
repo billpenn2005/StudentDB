@@ -13,12 +13,17 @@ import {
     Table,
     Row,
     Col,
+    Select,
 } from 'antd';
 import axiosInstance from '../axiosInstance';
 import { AuthContext } from '../contexts/AuthContext';
 
+const { Option } = Select;
+
 const CourseSelection = () => {
     const { user, selectedCourses, fetchUser, fetchSelectedCourses, loading: authLoading } = useContext(AuthContext);
+    const [selectionBatches, setSelectionBatches] = useState([]);
+    const [selectedBatchId, setSelectedBatchId] = useState(null);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState(null);
@@ -33,8 +38,17 @@ const CourseSelection = () => {
     const periods = [1, 2, 3, 4, 5]; // 根据模型修改为5节
 
     useEffect(() => {
-        fetchCourses();
+        fetchSelectionBatches();
     }, []);
+
+    useEffect(() => {
+        if (selectedBatchId) {
+            fetchCourses(selectedBatchId);
+        } else {
+            setCourses([]);
+            setLoading(false);
+        }
+    }, [selectedBatchId]);
 
     useEffect(() => {
         console.log('selectedCourses changed:', selectedCourses);
@@ -43,11 +57,30 @@ const CourseSelection = () => {
         }
     }, [selectedCourses, authLoading]);
 
-    // 获取可选课程列表
-    const fetchCourses = async () => {
+    // 获取选课批次列表
+    const fetchSelectionBatches = async () => {
+        try {
+            const response = await axiosInstance.get('selection-batches/');
+            setSelectionBatches(response.data.results || response.data); // 确保处理不同格式的数据
+            // 自动选择当前有效的批次（基于当前时间）
+            const now = new Date();
+            const currentBatch = response.data.find(batch => 
+                new Date(batch.start_selection_date) <= now && now <= new Date(batch.end_selection_date)
+            );
+            if (currentBatch) {
+                setSelectedBatchId(currentBatch.id);
+            }
+        } catch (error) {
+            console.error('Fetch Selection Batches Error:', error);
+            message.error('获取选课批次失败');
+        }
+    };
+
+    // 获取可选课程列表，根据选中的批次
+    const fetchCourses = async (batchId) => {
         setLoading(true);
         try {
-            const response = await axiosInstance.get('course-instances/list_available_courses/');
+            const response = await axiosInstance.get(`selection-batches/${batchId}/course_instances/`);
             console.log('Courses Response:', response.data); // Debug log
             if (Array.isArray(response.data)) {
                 setCourses(response.data);
@@ -95,7 +128,7 @@ const CourseSelection = () => {
             setModalVisible(false);
             await fetchUser(); // 重新获取用户信息，更新已选课程
             await fetchSelectedCourses(); // 重新获取已选课程
-            await fetchCourses(); // 更新可选课程列表，可能课程容量已变化
+            await fetchCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
             // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
         } catch (error) {
             console.error('Enroll Error:', error);
@@ -120,10 +153,9 @@ const CourseSelection = () => {
             const response = await axiosInstance.post(`course-instances/${course.id}/drop/`); // 确保端点正确
             console.log('Unenroll Response:', response.data); // Debug log
             message.success(response.data.detail || '退选成功');
-            setModalVisible(false);
             await fetchUser(); // 重新获取用户信息，更新已选课程
             await fetchSelectedCourses(); // 重新获取已选课程
-            await fetchCourses(); // 更新可选课程列表，可能课程容量已变化
+            await fetchCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
         } catch (error) {
             console.error('Unenroll Error:', error);
             if (error.response && error.response.data) {
@@ -208,6 +240,11 @@ const CourseSelection = () => {
         }))
     ];
 
+    // 处理批次选择变化
+    const handleBatchChange = (value) => {
+        setSelectedBatchId(value);
+    };
+
     if (loading || authLoading) {
         return (
             <div style={{ textAlign: 'center', paddingTop: '50px' }}>
@@ -219,6 +256,24 @@ const CourseSelection = () => {
     return (
         <div style={{ padding: '20px' }}>
             <h2>选课系统</h2>
+            
+            {/* 选课批次选择 */}
+            <div style={{ marginBottom: '20px' }}>
+                <span style={{ marginRight: '10px' }}>选择选课批次:</span>
+                <Select
+                    style={{ width: 300 }}
+                    placeholder="请选择选课批次"
+                    value={selectedBatchId}
+                    onChange={handleBatchChange}
+                >
+                    {selectionBatches.map(batch => (
+                        <Option key={batch.id} value={batch.id}>
+                            {batch.name} ({new Date(batch.start_selection_date).toLocaleString()} - {new Date(batch.end_selection_date).toLocaleString()})
+                        </Option>
+                    ))}
+                </Select>
+            </div>
+
             <Row gutter={[16, 16]}>
                 {/* 课表部分 */}
                 <Col xs={24} md={16}>
@@ -275,7 +330,7 @@ const CourseSelection = () => {
                                     {/* 添加禁用选课按钮逻辑 */}
                                     <Button
                                         type="primary"
-                                        onClick={() => handleViewDetails(course)}
+                                        onClick={() => handleEnroll()}
                                         size="small"
                                         disabled={course.is_finalized} // 禁用条件
                                     >
@@ -305,11 +360,10 @@ const CourseSelection = () => {
                                 <List.Item key={course.id}>
                                     <Card
                                         title={`${course.course_prototype.name} (${course.course_prototype.credits} 学分)`}
-                                        bordered={false}
-                                        style={{ width: '100%' }}
+                                        bordered
                                         size="small"
                                     >
-                                        <p>{course.description}</p>
+                                        <p><strong>描述：</strong> {course.description}</p>
                                         <p><strong>教师：</strong> {course.teacher?.user?.first_name && course.teacher?.user?.last_name ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知'}</p> {/* 使用可选链并提供默认值 */}
                                         <p><strong>班级：</strong> {course.group}</p>
                                         <Button
