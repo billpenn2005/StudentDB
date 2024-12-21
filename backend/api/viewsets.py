@@ -355,7 +355,9 @@ from django.db.models import Count
 from django.db.models import F
 from django.db.models import Window
 from django.db.models.functions import DenseRank
-
+from django.db.models import Value
+from django.db.models import F, Value, IntegerField
+from django.db.models.functions import Coalesce
 class S_GradeViewSet(viewsets.ModelViewSet):
     """
     成绩管理的 ViewSet
@@ -394,12 +396,20 @@ class S_GradeViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsOwnerStudent])
     def my_rankings(self, request):
+        """
+        API 9: 获取当前学生本学期和历史学期的所有成绩
+        """
         user = request.user
-        # 过滤出当前用户的成绩
-        student_grades = S_Grade.objects.filter(student=user)
-        # 获取这些成绩对应的课程实例
-        course_instances = student_grades.values_list('course_instance', flat=True)
-
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        grades = S_Grade.objects.filter(
+            student=user,
+            course_instance__is_grades_published=True
+        ).select_related('course_instance__course_prototype', 'course_instance__semester').order_by('course_instance__semester__start_date')
+        
         # 子查询：计算每门课程中，比当前学生总分更高的学生数量
         subquery = S_Grade.objects.filter(
             course_instance=OuterRef('course_instance'),
@@ -407,32 +417,32 @@ class S_GradeViewSet(viewsets.ModelViewSet):
         ).values('course_instance').annotate(
             higher_count=Count('id')
         ).values('higher_count')[:1]
-
-        # 主查询：仅包含成绩已发布的课程实例
+        
+        # 主查询：仅包含成绩已发布的课程实例，并使用Coalesce处理NULL值
         ranked_grades = S_Grade.objects.filter(
-            course_instance__in=course_instances,
+            course_instance__in=grades.values('course_instance'),
             student=user,
-            course_instance__is_grades_published=True  # 添加成绩已发布的条件
+            course_instance__is_grades_published=True
         ).annotate(
-            rank=Subquery(subquery, output_field=IntegerField()) + 1
+            higher_count=Subquery(subquery, output_field=IntegerField()),
+            rank=Coalesce(F('higher_count'), Value(0)) + 1
         ).values(
             'course_instance__course_prototype__name',
-            'course_instance__semester',
+            'course_instance__semester__name',
             'daily_score',
             'final_score',
             'total_score',
             'rank'
         )
-
+        
         # 构建返回的数据格式
         rankings = [
             {
-                'course_instance': f"{grade['course_instance__course_prototype__name']} - {grade['course_instance__semester']}",
+                'course_instance': f"{grade['course_instance__course_prototype__name']} - {grade['course_instance__semester__name']}",
                 'daily_score': grade.get('daily_score'),
                 'final_score': grade.get('final_score'),
                 'total_score': grade['total_score'],
                 'rank': grade['rank'],
-                # 'is_published' 已不需要，因为只查询已发布的成绩
             }
             for grade in ranked_grades
         ]
