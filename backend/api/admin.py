@@ -359,7 +359,7 @@ class S_GradeAdmin(ImportExportModelAdmin):
     list_filter = ('course_instance__course_prototype__name',)
 
     def get_student_username(self, obj):
-        return obj.student.user.username
+        return obj.student.username
     get_student_username.short_description = 'Student Username'
 
     def get_course_instance(self, obj):
