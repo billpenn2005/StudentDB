@@ -2,10 +2,16 @@
 
 from rest_framework import viewsets, permissions, mixins, generics
 from django.contrib.auth.models import User
-from .models import CoursePrototype, CourseInstance, Student, Grade, Teacher,S_Grade
+from .models import (
+    CoursePrototype, CourseInstance, Student, Grade, Teacher, S_Grade,
+    Semester, PunishmentRecord, RewardRecord, CourseSchedule
+)
 from .serializers import (
     CoursePrototypeSerializer, CourseInstanceSerializer, CourseInstanceCreateUpdateSerializer,
-    UserSerializer,GradeSerializer,StudentSerializer,TeacherSerializer,S_GradeSerializer
+    UserSerializer, GradeSerializer, StudentSerializer, TeacherSerializer, S_GradeSerializer,
+    SemesterSerializer, SemesterCreateUpdateSerializer,
+    PunishmentRecordSerializer, RewardRecordSerializer,
+    PunishmentRecordCreateSerializer, RewardRecordCreateSerializer
 )
 from django.db import transaction
 from rest_framework import status
@@ -13,10 +19,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from django.utils import timezone
-from .permissions import IsStudentUser, IsTeacherUser, IsAdminUser, IsTeacherOfCourse, IsOwnerStudent
+from .permissions import IsTeacherUser, IsStudentUser, IsAdminUser, IsTeacherOfCourse, IsOwnerStudent, IsAdminOrTeacher
 from django.db.models import F, Window
 from django.db.models.functions import Rank
 from django_filters.rest_framework import DjangoFilterBackend
+import csv
+import io
+from rest_framework.parsers import MultiPartParser, FormParser
+from .permissions import IsAdminUser, IsTeacherUser, IsStudentUser, IsTeacherOfCourse, IsOwnerStudent
 class CoursePrototypeViewSet(viewsets.ModelViewSet):
     """
     课程原型的 ViewSet
@@ -38,6 +48,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsTeacherUser, IsTeacherOfCourse])
     def publish_grades(self, request, pk=None):
         course_instance = self.get_object()
+        if not course_instance.is_finalized:
+            return Response({'detail': '选课截止时间未到，无法发布成绩'}, status=status.HTTP_400_BAD_REQUEST)
         if course_instance.is_grades_published:
             return Response({'detail': '成绩已发布，无需重复操作'}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -125,7 +137,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         now = timezone.now()
         available_courses = CourseInstance.objects.filter(
             selection_deadline__gte=now,
-            is_finalized=False,
+            #is_finalized=False,
             #eligible_departments=student.grade.department,
             #eligible_grades=student.grade,
             eligible_classes=student.student_class
@@ -163,7 +175,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': '课程实例不存在'}, status=status.HTTP_404_NOT_FOUND)
         
         # 检查选课时间是否已过
-        if timezone.now() > course_instance.selection_deadline:
+        if timezone.now() > course_instance.selection_deadline or course_instance.is_finalized:
             return Response({'detail': '选课时间已截止'}, status=status.HTTP_400_BAD_REQUEST)
         
         # 检查课程容量
@@ -218,7 +230,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             return Response({'detail': '课程实例不存在'}, status=status.HTTP_404_NOT_FOUND)
         
         # 检查选课时间是否已过
-        if timezone.now() > course_instance.selection_deadline:
+        if timezone.now() > course_instance.selection_deadline or course_instance.is_finalized:
             return Response({'detail': '选课时间已截止，无法退课'}, status=status.HTTP_400_BAD_REQUEST)
         
         if not course_instance.selected_students.filter(id=user.id).exists():
@@ -299,7 +311,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         
         selected_courses = CourseInstance.objects.filter(
             selected_students=user,
-            is_finalized=False  # 仅展示已最终化的选课
+            #is_finalized=False  # 仅展示已最终化的选课
         )
 
         serializer = self.get_serializer(selected_courses, many=True)
@@ -316,31 +328,6 @@ from rest_framework.views import APIView
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 
-class GenerateStudentReportView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def get(self, request, format=None):
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="student_report.pdf"'
-
-        p = canvas.Canvas(response)
-        p.setFont("Helvetica", 16)
-        p.drawString(100, 800, "学生信息报表")
-
-        students = Student.objects.all()
-        y = 750
-        p.setFont("Helvetica", 12)
-        for student in students:
-            text = f"姓名: {student.user.get_full_name()}, 单位: {student.department.name if student.department else 'N/A'}, 年龄: {student.age}, 性别: {student.get_gender_display()}, 身份证号码: {student.id_number}"
-            p.drawString(100, y, text)
-            y -= 20
-            if y < 50:
-                p.showPage()
-                y = 800
-
-        p.showPage()
-        p.save()
-        return response
 
 
 class CurrentUserView(generics.RetrieveUpdateAPIView):
@@ -386,6 +373,24 @@ class S_GradeViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
+    def my_all_grades(self, request):
+        """
+        API 9: 获取当前学生本学期和历史学期的所有成绩
+        """
+        user = request.user
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        grades = S_Grade.objects.filter(
+            student=user,
+            course_instance__is_grades_published=True
+        ).select_related('course_instance__course_prototype', 'course_instance__semester').order_by('course_instance__semester__start_date')
+        
+        serializer = self.get_serializer(grades, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsOwnerStudent])
     def my_rankings(self, request):
@@ -588,3 +593,473 @@ class CurrentStudentProfileView(generics.RetrieveUpdateAPIView):
             return Student.objects.get(user=self.request.user)
         except Student.DoesNotExist:
             raise Http404
+
+
+class SemesterViewSet(viewsets.ModelViewSet):
+    """
+    学期（批次）管理的 ViewSet
+    """
+    queryset = Semester.objects.all()
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return SemesterCreateUpdateSerializer
+        return SemesterSerializer
+
+from rest_framework.exceptions import PermissionDenied
+
+class PunishmentRecordViewSet(viewsets.ModelViewSet):
+    queryset = PunishmentRecord.objects.all()
+    serializer_class = PunishmentRecordSerializer
+    # 改为允许管理员或教师
+    permission_classes = [IsAuthenticated, IsAdminOrTeacher]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return PunishmentRecordCreateSerializer
+        return PunishmentRecordSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        # 根据需求限制教师只能看自己部门的学生，或者其他逻辑
+        if user.is_staff:
+            return PunishmentRecord.objects.all()
+        elif user.groups.filter(name='Teacher').exists():
+            # 示例：只查看同部门学生的奖惩
+            return PunishmentRecord.objects.filter(
+                student__department__in=user.teacher_profile.departments.all()
+            )
+        elif user.groups.filter(name='Student').exists():
+            # 学生只能查看自己的记录
+            return PunishmentRecord.objects.filter(student__user=user)
+        else:
+            return PunishmentRecord.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # 如果教师想添加奖惩，需要检查一下学生是否属于自己管理范围
+        # 以下仅做示例：和上面 get_queryset 的逻辑一致
+        if user.groups.filter(name='Teacher').exists():
+            student_obj = serializer.validated_data['student']
+            # 如果该学生不在教师的部门下，则拒绝
+            if not student_obj.department or \
+               student_obj.department not in user.teacher_profile.departments.all():
+                raise PermissionDenied("您无法为不属于您所在部门的学生添加奖惩记录。")
+
+        serializer.save()  # 正常创建
+
+class RewardRecordViewSet(viewsets.ModelViewSet):
+    """
+    奖励记录管理的 ViewSet
+    """
+    queryset = RewardRecord.objects.all()
+    serializer_class = RewardRecordSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrTeacher]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return RewardRecordCreateSerializer
+        return RewardRecordCreateSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        # 根据需求限制教师只能看自己部门的学生，或者其他逻辑
+        if user.is_staff:
+            return RewardRecord.objects.all()
+        elif user.groups.filter(name='Teacher').exists():
+            # 示例：只查看同部门学生的奖惩
+            return RewardRecord.objects.filter(
+                student__department__in=user.teacher_profile.departments.all()
+            )
+        elif user.groups.filter(name='Student').exists():
+            # 学生只能查看自己的记录
+            return RewardRecord.objects.filter(student__user=user)
+        else:
+            return RewardRecord.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # 如果教师想添加奖惩，需要检查一下学生是否属于自己管理范围
+        # 以下仅做示例：和上面 get_queryset 的逻辑一致
+        if user.groups.filter(name='Teacher').exists():
+            student_obj = serializer.validated_data['student']
+            # 如果该学生不在教师的部门下，则拒绝
+            if not student_obj.department or \
+            student_obj.department not in user.teacher_profile.departments.all():
+                raise PermissionDenied("您无法为不属于您所在部门的学生添加奖惩记录。")
+
+        serializer.save()  # 正常创建
+
+
+class BulkImportViewSet(viewsets.ViewSet):
+    """
+    批量导入的 ViewSet
+    """
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
+    def import_course_prototypes(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': '未上传文件'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        decoded_file = file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+        
+        created = 0
+        errors = []
+        for row in reader:
+            try:
+                course_prototype = CoursePrototype.objects.create(
+                    name=row['name'],
+                    description=row['description'],
+                    department_id=row['department_id'],
+                    credits=int(row['credits'])
+                )
+                created += 1
+            except Exception as e:
+                errors.append({'row': row, 'error': str(e)})
+        
+        return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
+    def import_course_instances(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': '未上传文件'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        decoded_file = file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        reader = csv.DictReader(io_string)
+        
+        created = 0
+        errors = []
+        for row in reader:
+            try:
+                with transaction.atomic():
+                    course_prototype = CoursePrototype.objects.get(id=row['course_prototype_id'])
+                    semester = Semester.objects.get(id=row['semester_id'])
+                    teacher = Teacher.objects.get(id=row['teacher_id']) if row.get('teacher_id') else None
+                    course_instance = CourseInstance.objects.create(
+                        course_prototype=course_prototype,
+                        semester=semester,
+                        location=row['location'],
+                        capacity=int(row['capacity']),
+                        selection_deadline=row['selection_deadline'],
+                        department_id=row['department_id'],
+                        daily_weight=int(row['daily_weight']),
+                        final_weight=int(row['final_weight']),
+                        teacher=teacher,
+                        is_finalized=row.get('is_finalized', False)
+                    )
+                    # 处理 eligible_departments, eligible_grades, eligible_classes
+                    eligible_departments = row['eligible_departments'].split(';') if row.get('eligible_departments') else []
+                    eligible_grades = row['eligible_grades'].split(';') if row.get('eligible_grades') else []
+                    eligible_classes = row['eligible_classes'].split(';') if row.get('eligible_classes') else []
+                    course_instance.eligible_departments.set(eligible_departments)
+                    course_instance.eligible_grades.set(eligible_grades)
+                    course_instance.eligible_classes.set(eligible_classes)
+                    # 处理 schedules
+                    schedules = row['schedules'].split('|') if row.get('schedules') else []
+                    for schedule in schedules:
+                        day, period = schedule.split('-')
+                        CourseSchedule.objects.create(course_instance=course_instance, day=day, period=int(period))
+                    created += 1
+            except Exception as e:
+                errors.append({'row': row, 'error': str(e)})
+        
+        return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)
+
+
+    # 类似的方法可以为 CoursePrototype 和 CourseInstance 实现
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.rl_config import TTFSearchPath
+import os
+
+# 注册中文字体
+font_path = os.path.join(os.path.dirname(__file__), 'fonts', 'SimSun.ttf')  # 确保字体文件路径正确
+pdfmetrics.registerFont(TTFont('SimSun', font_path))
+TTFSearchPath.append(os.path.join(os.path.dirname(__file__), 'fonts'))
+
+
+class GenerateReportView(APIView):
+    """
+    扩展后的报表生成接口
+    可根据用户角色返回不同的报表
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        """
+        通过 'type' 指明要生成的报表类型
+         - 'my_transcript': 学生自己的成绩单
+         - 'teacher_course': 教师的课程相关报表
+         - 也可保留之前 'students'/'grades'/'courses' 等管理员用
+        """
+        report_type = request.data.get('type')
+        if not report_type:
+            return Response({'detail': '请指定报表类型'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+
+        if report_type == 'my_transcript':
+            # 只允许学生
+            if not user.groups.filter(name='Student').exists():
+                return Response({'detail': '只有学生可以生成个人成绩单报表'}, status=status.HTTP_403_FORBIDDEN)
+            return self.generate_my_transcript(user)
+
+        elif report_type == 'teacher_course':
+            # 只允许教师
+            if not user.groups.filter(name='Teacher').exists():
+                return Response({'detail': '只有教师可以生成所授课程报表'}, status=status.HTTP_403_FORBIDDEN)
+            # 前端传课程ID进来
+            course_id = request.data.get('course_id')
+            if not course_id:
+                return Response({'detail': '缺少 course_id 参数'}, status=status.HTTP_400_BAD_REQUEST)
+            return self.generate_teacher_course_report(user, course_id)
+
+        # 如果还想保留原先的 'students'/'grades'/'courses' 给管理员用，可以写：
+        elif report_type == 'students':
+            if not user.is_staff:
+                return Response({'detail': '只有管理员可以生成学生信息报表'}, status=status.HTTP_403_FORBIDDEN)
+            return self.generate_student_report()
+
+        elif report_type == 'grades':
+            if not user.is_staff:
+                return Response({'detail': '只有管理员可以生成全部成绩报表'}, status=status.HTTP_403_FORBIDDEN)
+            return self.generate_grades_report()
+
+        elif report_type == 'courses':
+            if not user.is_staff:
+                return Response({'detail': '只有管理员可以生成课程报表'}, status=status.HTTP_403_FORBIDDEN)
+            return self.generate_courses_report()
+
+        else:
+            return Response({'detail': f'未知的报表类型: {report_type}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def generate_my_transcript(self, user):
+        """
+        学生生成自己的成绩单
+        """
+        # 查找该 user 对应的 Student
+        try:
+            student = user.student_profile
+        except Student.DoesNotExist:
+            return Response({'detail': '未找到该学生'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 获取此学生所有已发布的成绩
+        grades = S_Grade.objects.filter(
+            student=user, 
+            course_instance__is_grades_published=True
+        ).select_related('course_instance__course_prototype', 'course_instance__semester')
+
+        # 开始生成 PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{user.username}_transcript.pdf"'
+
+        p = canvas.Canvas(response)
+        p.setFont("SimSun", 16)
+        p.drawString(100, 800, f"{student.user.get_full_name()} 的成绩单")
+
+        y = 760
+        p.setFont("SimSun", 12)
+        for g in grades:
+            line = f"课程: {g.course_instance.course_prototype.name}, 学期: {g.course_instance.semester.name}, 平时分: {g.daily_score}, 期末分: {g.final_score}, 总分: {g.total_score}"
+            p.drawString(100, y, line)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                # 重新绘制标题
+                p.setFont("SimSun", 16)
+                p.drawString(100, 800, f"{student.user.get_full_name()} 的成绩单")
+                y = 760
+                p.setFont("SimSun", 12)
+
+        p.showPage()
+        p.save()
+        return response
+
+    def generate_teacher_course_report(self, user, course_id):
+        """
+        教师生成所授课程报表（如学生名单+成绩信息 等）
+        """
+        # 获取该 user 对应的 Teacher
+        try:
+            teacher = user.teacher_profile
+        except Teacher.DoesNotExist:
+            return Response({'detail': '未找到该教师'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 拿到指定课程
+        try:
+            course = CourseInstance.objects.get(id=course_id, teacher=teacher)
+        except CourseInstance.DoesNotExist:
+            return Response({'detail': '您没有权限或该课程不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 取出此课程所有已选学生 + 成绩
+        grades = S_Grade.objects.filter(course_instance=course).select_related('student')
+
+        response = HttpResponse(content_type='application/pdf')
+        filename = f"{course.course_prototype.name}_report.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        p = canvas.Canvas(response)
+        p.setFont("SimSun", 16)
+        p.drawString(100, 800, f"课程报表: {course.course_prototype.name}({course.semester.name})")
+
+        y = 760
+        p.setFont("SimSun", 12)
+        for g in grades:
+            student_name = g.student.get_full_name() if g.student.first_name else g.student.username
+            line = f"学生: {student_name}, 平时分: {g.daily_score}, 期末分: {g.final_score}, 总分: {g.total_score}"
+            p.drawString(100, y, line)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                # 重新绘制标题
+                p.setFont("SimSun", 16)
+                p.drawString(100, 800, f"课程报表: {course.course_prototype.name}({course.semester.name})")
+                y = 760
+                p.setFont("SimSun", 12)
+
+        p.showPage()
+        p.save()
+        return response
+
+    
+    def generate_student_report(self):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="student_report.pdf"'
+
+        p = canvas.Canvas(response)
+        p.setFont("SimSun", 16)
+        p.drawString(100, 800, "学生信息报表")
+
+        students = Student.objects.all()
+        y = 750
+        p.setFont("SimSun", 12)
+        for student in students:
+            text = f"姓名: {student.user.get_full_name()}, 单位: {student.department.name if student.department else 'N/A'}, 年龄: {student.age}, 性别: {student.get_gender_display()}, 身份证号码: {student.id_number}"
+            p.drawString(100, y, text)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                # 重新绘制标题
+                p.setFont("SimSun", 16)
+                p.drawString(100, 800, "学生信息报表")
+                y = 750
+                p.setFont("SimSun", 12)
+
+        p.showPage()
+        p.save()
+        return response
+
+    def generate_grades_report(self):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="grades_report.pdf"'
+
+        p = canvas.Canvas(response)
+        p.setFont("SimSun", 16)
+        p.drawString(100, 800, "成绩报表")
+
+        grades = S_Grade.objects.filter(course_instance__is_finalized=True)
+        y = 750
+        p.setFont("SimSun", 12)
+        for grade in grades:
+            text = f"学生: {grade.student.user.get_full_name()}, 课程: {grade.course_instance.course_prototype.name}, 平时分: {grade.daily_score}, 期末分: {grade.final_score}, 总分: {grade.total_score}"
+            p.drawString(100, y, text)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                # 重新绘制标题
+                p.setFont("SimSun", 16)
+                p.drawString(100, 800, "成绩报表")
+                y = 750
+                p.setFont("SimSun", 12)
+
+        p.showPage()
+        p.save()
+        return response
+
+    def generate_courses_report(self):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="courses_report.pdf"'
+
+        p = canvas.Canvas(response)
+        p.setFont("SimSun", 16)
+        p.drawString(100, 800, "课程报表")
+
+        courses = CourseInstance.objects.all()
+        y = 750
+        p.setFont("SimSun", 12)
+        for course in courses:
+            text = f"课程: {course.course_prototype.name}, 学期: {course.semester.name}, 教师: {course.teacher.user.get_full_name() if course.teacher else 'N/A'}, 已选人数: {course.selected_students.count()}/{course.capacity}, 是否最终化: {'是' if course.is_finalized else '否'}"
+            p.drawString(100, y, text)
+            y -= 20
+            if y < 50:
+                p.showPage()
+                # 重新绘制标题
+                p.setFont("SimSun", 16)
+                p.drawString(100, 800, "课程报表")
+                y = 750
+                p.setFont("SimSun", 12)
+
+        p.showPage()
+        p.save()
+        return response
+    
+
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, format=None):
+        user = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not old_password or not new_password or not confirm_password:
+            return Response({'detail': '所有字段都是必填的'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_password != confirm_password:
+            return Response({'detail': '新密码和确认密码不一致'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not user.check_password(old_password):
+            return Response({'detail': '旧密码不正确'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            return Response({'detail': e.messages}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+        return Response({'detail': '密码修改成功'}, status=status.HTTP_200_OK)
+    
+
+
+
+class StudentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    学生管理的 ViewSet
+    提供学生的列表和详细信息
+    """
+    queryset = Student.objects.all()
+    serializer_class = StudentSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrTeacher]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Student.objects.all()
+        elif user.groups.filter(name='Teacher').exists():
+            # 假设教师只能看到自己部门的学生
+            return Student.objects.filter(department__in=user.teacher_profile.departments.all())
+        else:
+            return Student.objects.none()

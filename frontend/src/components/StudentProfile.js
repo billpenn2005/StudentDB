@@ -19,7 +19,7 @@ const StudentProfile = () => {
                 // 获取当前用户信息
                 const userRes = await axiosInstance.get('user/current/');
                 // 获取当前学生的详细信息
-                const studentRes = await axiosInstance.get('students/current/');
+                const studentRes = await axiosInstance.get('old_students/current/');
 
                 // 如果响应在 results 中，提取第一个元素
                 const userData = userRes.data.results ? userRes.data.results[0] : userRes.data;

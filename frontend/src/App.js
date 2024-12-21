@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { Component, useContext } from 'react';
 import { Route, Routes, Navigate, Link } from 'react-router-dom';
 import { Layout, Menu, Spin } from 'antd';
 import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
@@ -21,12 +21,14 @@ import ManageGrades from './components/ManageGrades';
 import { AuthContext } from './contexts/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import ChangePassword from './components/ChangePassword';
+import PunishmentRecords from './components/PunishmentRecords';
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
 const App = () => {
     const { isAuthenticated, user, loading } = useContext(AuthContext);
+    const isAdmin = user?.is_staff === true;
 
     // 加载中状态
     if (loading) {
@@ -77,7 +79,11 @@ const App = () => {
                                 </SubMenu>
                             </>
                         )}
-
+                        {(isTeacher || isAdmin) && (
+                            <Menu.Item key="99">
+                                <Link to="/punishments">奖惩管理</Link>
+                            </Menu.Item>
+                        )}
                         {isTeacher && (
                             <>
                                 <Menu.Item key="7" icon={<UserOutlined />}>
@@ -86,6 +92,11 @@ const App = () => {
 
                                 <Menu.Item key="13">
                                     <Link to="/manage-grades/1">管理成绩</Link>
+                                </Menu.Item>
+
+                                {/* 新增奖惩管理入口 */}
+                                <Menu.Item key="99">
+                                    <Link to="/punishments">奖惩管理</Link>
                                 </Menu.Item>
                             </>
                         )}
@@ -106,6 +117,7 @@ const App = () => {
 
                 <Content style={{ margin: '16px' }}>
                     <Routes>
+
                         <Route path="/" element={<Home />} />
 
                         {/* 学生端路由 */}
@@ -166,7 +178,14 @@ const App = () => {
                                 <ManageGrades />
                             </RoleProtectedRoute>
                         } />
-
+                        <Route 
+                        path="/punishments"
+                        element={
+                            <RoleProtectedRoute roles={['Teacher', 'Admin']}>
+                            <PunishmentRecords />
+                            </RoleProtectedRoute>
+                        }
+                        />
                         {/* 未匹配的路由 */}
                         <Route path="*" element={<Navigate to="/" />} />
                     </Routes>

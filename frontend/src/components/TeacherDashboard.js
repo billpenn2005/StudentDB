@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import axiosInstance from '../axiosInstance';
 import { AuthContext } from '../contexts/AuthContext';
 import { toast } from 'react-toastify';
+import { message } from 'antd';
 
 const { Title } = Typography;
 
@@ -12,6 +13,7 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [courseInstances, setCourseInstances] = useState([]);
 
+  
   useEffect(() => {
     const fetchCourses = async () => {
       if (!user || !user.teacher_id) {
@@ -37,6 +39,28 @@ const TeacherDashboard = () => {
 
     fetchCourses();
   }, [user]);
+
+    // handlePrintReport
+  const handlePrintReport = async (courseId) => {
+    try {
+      const res = await axiosInstance.post(
+        'generate-report/',
+        { type: 'teacher_course', course_id: courseId },
+        { responseType: 'blob' }
+      );
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `course_report_${courseId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      message.success('报表导出成功');
+    } catch (error) {
+      console.error(error);
+      message.error('报表导出失败');
+    }
+  };
 
   const columns = [
     {
@@ -64,9 +88,12 @@ const TeacherDashboard = () => {
           <Link to={`/manage-grades/${record.id}`}>
             <Button type="primary">管理成绩</Button>
           </Link>
+          <Button onClick={() => handlePrintReport(record.id)}>打印报表</Button>
+
         </div>
       )
     }
+    
   ];
 
   if (loading) {

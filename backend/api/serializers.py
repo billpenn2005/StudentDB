@@ -2,7 +2,10 @@
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Department, Grade, Class, CoursePrototype, CourseInstance, Student, CourseSchedule, Teacher,S_Grade
+from .models import (
+    Department, Grade, Class, CoursePrototype, CourseInstance, Student,
+    CourseSchedule, Teacher, S_Grade, Semester, PunishmentRecord, RewardRecord
+)
 from django.db import transaction
 #from django.contrib.auth import get_user_model
 
@@ -92,18 +95,63 @@ class TeacherSerializer(serializers.ModelSerializer):
             instance.departments.set(departments)
         return super().update(instance, validated_data)
     
+class SemesterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Semester
+        fields = ['id', 'name', 'start_date', 'end_date', 'selection_start_week', 'selection_end_week', 'current_week']
+
+class PunishmentRecordSerializer(serializers.ModelSerializer):
+    student = serializers.StringRelatedField(read_only=True)
+    student_id = serializers.PrimaryKeyRelatedField(
+        queryset=Student.objects.all(), source='student', write_only=True
+    )
+
+    class Meta:
+        model = PunishmentRecord
+        fields = ['id', 'student', 'student_id', 'date', 'type', 'description']
+
+class RewardRecordSerializer(serializers.ModelSerializer):
+    student = serializers.StringRelatedField(read_only=True)
+    student_id = serializers.PrimaryKeyRelatedField(
+        queryset=Student.objects.all(), source='student', write_only=True
+    )
+
+    class Meta:
+        model = RewardRecord
+        fields = ['id', 'student', 'student_id', 'date', 'type', 'description']
+
+class SemesterCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Semester
+        fields = '__all__'
+
+class PunishmentRecordCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PunishmentRecord
+        fields = ['id', 'student', 'type', 'description']
+
+class RewardRecordCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RewardRecord
+        fields = ['id', 'student', 'type', 'description']
+
 class CourseInstanceSerializer(serializers.ModelSerializer):
     course_prototype = CoursePrototypeSerializer(read_only=True)
+    semester = SemesterSerializer(read_only=True)
+    semester_id = serializers.PrimaryKeyRelatedField(
+        queryset=Semester.objects.all(), source='semester', write_only=True
+    )
     department = DepartmentSerializer(read_only=True)
     eligible_departments = DepartmentSerializer(many=True, read_only=True)
     eligible_grades = GradeSerializer(many=True, read_only=True)
     eligible_classes = ClassSerializer(many=True, read_only=True)
     selected_students = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
-    schedules = CourseScheduleSerializer(many=True, read_only=True)  # 新增字段
-    teacher = TeacherSerializer(read_only=True)  # 添加只读字段
+    schedules = CourseScheduleSerializer(many=True, read_only=True)
+    teacher = TeacherSerializer(read_only=True)
     teacher_id = serializers.PrimaryKeyRelatedField(
         queryset=Teacher.objects.all(), source='teacher', write_only=True, allow_null=True, required=False
-    )  # 新增字段
+    )
+
     class Meta:
         model = CourseInstance
         fields = '__all__'
@@ -118,11 +166,12 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
     )
     teacher_id = serializers.PrimaryKeyRelatedField(
         queryset=Teacher.objects.all(), source='teacher', write_only=True, allow_null=True, required=False
-    )  # 新增字段
+    )
+
     class Meta:
         model = CourseInstance
         fields = '__all__'
-    
+
     def create(self, validated_data):
         schedules_data = validated_data.pop('schedules')
         selected_students = validated_data.pop('selected_students', [])
@@ -133,29 +182,28 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
         for schedule_data in schedules_data:
             CourseSchedule.objects.create(course_instance=course_instance, **schedule_data)
         return course_instance
-    
+
     def update(self, instance, validated_data):
         schedules_data = validated_data.pop('schedules', None)
         selected_students = validated_data.pop('selected_students', None)
         eligible_classes = validated_data.pop('eligible_classes', None)
-    
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-    
+
         if schedules_data is not None:
             instance.schedules.all().delete()
             for schedule_data in schedules_data:
                 CourseSchedule.objects.create(course_instance=instance, **schedule_data)
-    
+
         if selected_students is not None:
             instance.selected_students.set(selected_students)
                 
         if eligible_classes is not None:
             instance.eligible_classes.set(eligible_classes)
-    
+
         return instance
-    
 
     def validate(self, data):
         daily_weight = data.get('daily_weight', 50)
@@ -187,10 +235,10 @@ class S_GradeSerializer(serializers.ModelSerializer):
     )
     is_published = serializers.SerializerMethodField()
     ranking = serializers.IntegerField(read_only=True)
-
+    semester = serializers.CharField(source='course_instance.semester.name', read_only=True)
     class Meta:
         model = S_Grade
-        fields = ['id', 'student', 'student_id', 'course_instance', 'course_instance_id', 'daily_score', 'final_score', 'total_score', 'is_published', 'ranking']
+        fields = ['id', 'student', 'student_id', 'course_instance', 'course_instance_id', 'daily_score', 'final_score', 'total_score', 'is_published', 'ranking', 'semester']
         read_only_fields = ['id', 'student', 'course_instance', 'total_score']
 
     def validate(self, data):
