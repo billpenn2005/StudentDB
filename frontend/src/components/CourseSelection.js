@@ -272,10 +272,18 @@ const CourseSelection = () => {
                                     >
                                         查看详情
                                     </Button>
-                                    {/* 根据您的需求，可以选择是否保留直接选课按钮 */}
-                                    {/* <Button type="primary" onClick={() => handleEnroll(course)} size="small">
+                                    {/* 添加禁用选课按钮逻辑 */}
+                                    <Button
+                                        type="primary"
+                                        onClick={() => handleViewDetails(course)}
+                                        size="small"
+                                        disabled={course.is_finalized} // 禁用条件
+                                    >
                                         选课
-                                    </Button> */}
+                                    </Button>
+                                    {course.is_finalized && (
+                                        <Badge status="warning" text="已截止选课" style={{ marginLeft: '10px' }} />
+                                    )}
                                 </Card>
                             </List.Item>
                         )}
@@ -309,9 +317,13 @@ const CourseSelection = () => {
                                             onClick={() => handleUnenroll(course)}
                                             loading={submitting}
                                             size="small"
+                                            disabled={course.is_finalized} // 禁用退选按钮
                                         >
                                             退选
                                         </Button>
+                                        {course.is_finalized && (
+                                            <Badge status="warning" text="已截止退选" style={{ marginLeft: '10px' }} />
+                                        )}
                                     </Card>
                                 </List.Item>
                             )}
@@ -336,6 +348,7 @@ const CourseSelection = () => {
                             onClick={() => handleUnenroll(selectedCourse)}
                             loading={submitting}
                             size="small"
+                            disabled={courseDetails?.is_finalized} // 禁用退选按钮
                         >
                             退选
                         </Button>
@@ -345,12 +358,13 @@ const CourseSelection = () => {
                             type="primary"
                             onClick={() => handleEnroll()}
                             disabled={
-                                // 检查是否有时间冲突或课程已满或选课截止日期已过
+                                // 检查是否有时间冲突或课程已满或选课截止日期已过或课程已最终化
                                 courseDetails?.schedules?.some(cls =>
                                     selectedTimeSlots.some(slot => slot.day === cls.day && slot.period === cls.period)
                                 ) ||
                                 courseDetails?.selected_students.length >= courseDetails?.capacity ||
-                                new Date(courseDetails?.selection_deadline) < new Date()
+                                new Date(courseDetails?.selection_deadline) < new Date() ||
+                                courseDetails?.is_finalized // 添加最终化检查
                             }
                             loading={submitting}
                             size="small"

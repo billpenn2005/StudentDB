@@ -17,6 +17,20 @@ class IsTeacherUser(permissions.BasePermission):
     def has_permission(self, request, view):
         return bool(request.user and request.user.groups.filter(name='Teacher').exists())
 
+class IsAdminOrTeacher(permissions.BasePermission):
+    """
+    允许管理员（is_staff=True）或在Teacher组里的用户访问
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user and (
+                user.is_staff or  # 管理员
+                user.groups.filter(name='Teacher').exists()  # 教师
+            )
+        )
+
 class IsStudentUser(permissions.BasePermission):
     """
     仅允许学生用户访问

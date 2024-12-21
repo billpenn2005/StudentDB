@@ -2,12 +2,13 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet, S_GradeViewSet,TeacherViewSet, DepartmentViewSet, ClassViewSet, GradeViewSet, CurrentStudentProfileView, GenerateStudentReportView
+from .viewsets import CurrentUserView, CoursePrototypeViewSet, CourseInstanceViewSet, S_GradeViewSet,TeacherViewSet, DepartmentViewSet, ClassViewSet, GradeViewSet, CurrentStudentProfileView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-
+from .viewsets import BulkImportViewSet, GenerateReportView,ChangePasswordView,PunishmentRecordViewSet, RewardRecordViewSet
+from .viewsets import StudentViewSet
 router = DefaultRouter()
 router.register(r'course-prototypes', CoursePrototypeViewSet, basename='course-prototype')
 router.register(r'course-instances', CourseInstanceViewSet, basename='course-instance')
@@ -16,6 +17,10 @@ router.register(r'teachers', TeacherViewSet)  # 添加这一行
 router.register(r'departments', DepartmentViewSet)
 router.register(r'classes', ClassViewSet)
 router.register(r'grades', GradeViewSet)
+router.register(r'bulk-import', BulkImportViewSet, basename='bulk-import')
+router.register(r'punishment-record', PunishmentRecordViewSet, basename='punishment-record')
+router.register(r'reward-record', RewardRecordViewSet, basename='reward-record')
+router.register(r'students', StudentViewSet, basename='student')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -25,7 +30,8 @@ urlpatterns = [
     ])),
     path('token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    path('students/current/', CurrentStudentProfileView.as_view(), name='current-student-profile'),
-    path('generate-report/', GenerateStudentReportView.as_view(), name='generate-student-report'),
-
+    path('old_students/current/', CurrentStudentProfileView.as_view(), name='current-student-profile'),
+    
+    path('generate-report/', GenerateReportView.as_view(), name='generate-report'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
 ]

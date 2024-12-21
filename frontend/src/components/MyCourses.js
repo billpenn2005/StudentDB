@@ -1,7 +1,7 @@
 // src/components/MyCourses.js
 
 import React, { useEffect, useContext, useState } from 'react';
-import { List, Card, Button, Spin, Modal, message } from 'antd';
+import { List, Card, Button, Spin, Modal, message, Badge } from 'antd';
 import { AuthContext } from '../contexts/AuthContext';
 import axiosInstance from '../axiosInstance';
 
@@ -81,9 +81,13 @@ const SelectedCourses = () => {
                                     onClick={() => handleUnenroll(course)}
                                     loading={submitting}
                                     size="small"
+                                    disabled={course.is_finalized} // 禁用退选按钮
                                 >
                                     退选
                                 </Button>
+                                {course.is_finalized && (
+                                    <Badge status="warning" text="已截止退选" style={{ marginLeft: '10px' }} />
+                                )}
                             </Card>
                         </List.Item>
                     )}

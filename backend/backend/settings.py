@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_yasg',
     'drf_yasg2',
+    'import_export',
 
     # 你的应用
     'api',

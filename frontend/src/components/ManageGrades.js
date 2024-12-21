@@ -20,23 +20,27 @@ const ManageGrades = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 获取课程实例详情
+                // Fetch course instance details
                 const courseRes = await axiosInstance.get(`course-instances/${courseInstanceId}/`);
                 setCourseInstance(courseRes.data);
 
-                // 获取已选学生列表
+                // Fetch enrolled students
                 const studentsRes = await axiosInstance.get(`course-instances/${courseInstanceId}/view_enrolled_students/`);
                 const students = studentsRes.data || [];
 
-                // 获取已有成绩数据
+                // Fetch existing grades
                 const gradesRes = await axiosInstance.get(`s-grades/?course_instance=${courseInstanceId}`);
                 const existingGrades = gradesRes.data.results || [];
 
-                // 获取权重
+                // Fetch weights
                 const dailyWeight = courseRes.data.daily_weight;
                 const finalWeight = courseRes.data.final_weight;
-
-                // 将学生列表与成绩数据关联，并计算加权总分
+                console.log('Weights:', dailyWeight, finalWeight);
+                console.log('Existing grades:', existingGrades);
+                console.log('Enrolled students:', students);
+                console.log('Course instance:', courseRes.data);
+                
+                // Merge student list with grades data and calculate weighted total
                 const mergedData = students.map(stu => {
                     const gradeItem = existingGrades.find(g => g.student === stu.username);
                     const daily_score = gradeItem ? parseFloat(gradeItem.daily_score) : 0.00;
@@ -56,7 +60,7 @@ const ManageGrades = () => {
                 setEnrolledStudents(students);
                 setGradesData(mergedData);
 
-                // 设置表单初始值
+                // Set form initial values
                 weightsForm.setFieldsValue({
                     daily_weight: dailyWeight,
                     final_weight: finalWeight,
@@ -86,21 +90,21 @@ const ManageGrades = () => {
             });
             toast.success('成绩占比设置成功');
             
-            // 更新本地状态中的权重
+            // Update local state with new weights
             setCourseInstance(prev => ({
                 ...prev,
                 daily_weight,
                 final_weight
             }));
 
-            // 重新计算所有学生的 total_score
+            // Recalculate all students' total_score
             const updatedGradesData = gradesData.map(g => ({
                 ...g,
                 total_score: (g.daily_score * (daily_weight / 100)) + (g.final_score * (final_weight / 100))
             }));
             setGradesData(updatedGradesData);
 
-            // 如果不想刷新页面，可以移除以下行
+            // If you don't want to refresh the page, you can remove the following line
             // window.location.reload();
         } catch (error) {
             console.error('Error setting grade weights:', error);
@@ -149,8 +153,7 @@ const ManageGrades = () => {
     };
 
     const handleSubmitGrades = async () => {
-        // 构建批量更新的数据结构
-        // 每条数据需要 student_id, daily_score, final_score
+        // Build the payload for bulk updating grades
         const payload = gradesData.map(g => ({
             student_id: g.student_id,
             daily_score: g.daily_score,
@@ -220,7 +223,9 @@ const ManageGrades = () => {
 
     return (
         <div>
-            <Title level={2}>管理成绩 - {courseInstance.course_prototype.name} ({courseInstance.semester})</Title>
+            <Title level={2}>
+                管理成绩 - {courseInstance.course_prototype.name} ({courseInstance.semester?.name || '未指定学期'})
+            </Title>
 
             <Title level={4}>设置成绩占比</Title>
             <Form
