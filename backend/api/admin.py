@@ -227,6 +227,9 @@ export_selected_students_as_pdf.short_description = "导出选中学生为PDF"
 class DepartmentAdmin(ImportExportModelAdmin):
     resource_class = DepartmentResource
     list_display = ('id', 'name')
+class DepartmentAdmin(ImportExportModelAdmin):
+    resource_class = DepartmentResource
+    list_display = ('id', 'name')
     search_fields = ('name',)
 
 @admin.register(Teacher)
@@ -234,7 +237,8 @@ class TeacherAdmin(ImportExportModelAdmin):
     resource_class = TeacherResource
     list_display = ('id', 'get_username', 'get_departments')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
-    filter_horizontal = ('departments',)
+    # 如果 departments 多对多，可用
+    # filter_horizontal = ('departments',)
 
     def get_username(self, obj):
         return obj.user.username
@@ -428,3 +432,4 @@ class CustomUserAdmin(BaseUserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
