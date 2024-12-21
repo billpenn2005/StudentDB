@@ -492,32 +492,43 @@ class S_GradeViewSet(viewsets.ModelViewSet):
         if course_instance.teacher != request.user.teacher_profile:
             return Response({'detail': '您没有权限修改该课程实例的成绩。'}, status=status.HTTP_403_FORBIDDEN)
         
-        grades_to_update = []
-        for entry in data:
-            student_id = entry.get('student_id')
-            daily_score = entry.get('daily_score')
-            final_score = entry.get('final_score')
-
-            if not all([student_id is not None, daily_score is not None, final_score is not None]):
-                return Response({'detail': '每个条目必须包含student_id、daily_score和final_score。'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            try:
-                student = User.objects.get(id=student_id, groups__name='Student')
-            except User.DoesNotExist:
-                return Response({'detail': f'id为 {student_id} 的用户不存在或不是学生。'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            grade, created = S_Grade.objects.get_or_create(student=student, course_instance=course_instance)
-            grade.daily_score = daily_score
-            grade.final_score = final_score
-            grade.total_score = daily_score + final_score
-            grades_to_update.append(grade)
+        updated_grades = []
+        errors = []
         
         try:
             with transaction.atomic():
-                S_Grade.objects.bulk_update(grades_to_update, ['daily_score', 'final_score', 'total_score'])
-            return Response({'detail': '成绩更新成功。'}, status=status.HTTP_200_OK)
+                for entry in data:
+                    student_id = entry.get('student_id')
+                    daily_score = entry.get('daily_score')
+                    final_score = entry.get('final_score')
+
+                    if not all([student_id is not None, daily_score is not None, final_score is not None]):
+                        errors.append({'student_id': student_id, 'detail': '每个条目必须包含student_id、daily_score和final_score。'})
+                        continue
+                    
+                    try:
+                        student = User.objects.get(id=student_id, groups__name='Student')
+                    except User.DoesNotExist:
+                        errors.append({'student_id': student_id, 'detail': '用户不存在或不是学生。'})
+                        continue
+                    
+                    # 获取或创建 S_Grade 实例
+                    s_grade, created = S_Grade.objects.get_or_create(student=student, course_instance=course_instance)
+                    s_grade.daily_score = daily_score
+                    s_grade.final_score = final_score
+                    s_grade.save()  # 这将自动更新 total_score
+                    updated_grades.append(S_GradeSerializer(s_grade).data)
         except Exception as e:
             return Response({'detail': f'发生错误: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        response_data = {
+            'updated_grades': updated_grades,
+            'errors': errors
+        }
+        
+        status_code = status.HTTP_200_OK if not errors else status.HTTP_207_MULTI_STATUS
+        
+        return Response(response_data, status=status_code)
 
 class TeacherViewSet(viewsets.ModelViewSet):
     """

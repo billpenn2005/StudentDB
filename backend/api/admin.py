@@ -134,8 +134,14 @@ class CustomUserAdmin(BaseUserAdmin):
     search_fields = ('username', 'email', 'first_name', 'last_name')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
 
-    # 使用只读内联，避免在 Admin 创建时自动创建关联模型
+    # 移除默认的 inlines，使用自定义的只在编辑时显示
     inlines = [ReadOnlyUserProfileInline, ReadOnlyTeacherInline, ReadOnlyStudentInline]
+
+    def get_inline_instances(self, request, obj=None):
+        if not obj:
+            # 如果是添加新用户，不显示任何内联
+            return []
+        return super().get_inline_instances(request, obj)
 
     def get_user_type(self, obj):
         if hasattr(obj, 'teacher_profile'):
@@ -149,4 +155,3 @@ class CustomUserAdmin(BaseUserAdmin):
 # 重新注册 UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
-
