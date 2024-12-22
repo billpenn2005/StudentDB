@@ -1,3 +1,5 @@
+# backend/api/admin.py
+
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.http import HttpResponse
@@ -25,6 +27,7 @@ class SelectionBatchResource(resources.ModelResource):
         import_id_fields = ('id',)
         fields = ('id', 'name', 'start_selection_date', 'end_selection_date', 'semester')
 
+
 class GradeResource(resources.ModelResource):
     department = fields.Field(
         column_name='department',
@@ -37,11 +40,13 @@ class GradeResource(resources.ModelResource):
         import_id_fields = ('id',)
         fields = ('id', 'name', 'department')
 
+
 class DepartmentResource(resources.ModelResource):
     class Meta:
         model = Department
         import_id_fields = ('id',)
         fields = ('id', 'name',)
+
 
 class TeacherResource(resources.ModelResource):
     departments = fields.Field(
@@ -54,6 +59,7 @@ class TeacherResource(resources.ModelResource):
         model = Teacher
         import_id_fields = ('id',)
         fields = ('id', 'user', 'departments',)
+
 
 class StudentResource(resources.ModelResource):
     grade = fields.Field(
@@ -85,6 +91,7 @@ class StudentResource(resources.ModelResource):
             'department', 'student_class', 'grade'
         )
 
+
 class CoursePrototypeResource(resources.ModelResource):
     department = fields.Field(
         column_name='department',
@@ -96,6 +103,7 @@ class CoursePrototypeResource(resources.ModelResource):
         model = CoursePrototype
         import_id_fields = ('id',)
         fields = ('id', 'name', 'description', 'department', 'credits')
+
 
 class CourseInstanceResource(resources.ModelResource):
     course_prototype = fields.Field(
@@ -129,6 +137,7 @@ class CourseInstanceResource(resources.ModelResource):
             'teacher', 'is_finalized'
         )
 
+
 class CourseScheduleResource(resources.ModelResource):
     course_instance = fields.Field(
         column_name='course_instance',
@@ -153,6 +162,7 @@ class CourseScheduleResource(resources.ModelResource):
             'id', 'course_instance', 'day', 'period',
         )
 
+
 class SemesterResource(resources.ModelResource):
     class Meta:
         model = Semester
@@ -161,6 +171,7 @@ class SemesterResource(resources.ModelResource):
             'id', 'name', 'start_date', 'end_date',
             'selection_start_week', 'selection_end_week', 'current_week'
         )
+
 
 class PunishmentRecordResource(resources.ModelResource):
     student = fields.Field(
@@ -174,6 +185,7 @@ class PunishmentRecordResource(resources.ModelResource):
         import_id_fields = ('id',)
         fields = ('id', 'student', 'date', 'type', 'description')
 
+
 class RewardRecordResource(resources.ModelResource):
     student = fields.Field(
         column_name='student',
@@ -185,6 +197,7 @@ class RewardRecordResource(resources.ModelResource):
         model = RewardRecord
         import_id_fields = ('id',)
         fields = ('id', 'student', 'date', 'type', 'description')
+
 
 class S_GradeResource(resources.ModelResource):
     student = fields.Field(
@@ -239,10 +252,8 @@ export_selected_students_as_pdf.short_description = "导出选中学生为PDF"
 class DepartmentAdmin(ImportExportModelAdmin):
     resource_class = DepartmentResource
     list_display = ('id', 'name')
-class DepartmentAdmin(ImportExportModelAdmin):
-    resource_class = DepartmentResource
-    list_display = ('id', 'name')
     search_fields = ('name',)
+
 
 @admin.register(Teacher)
 class TeacherAdmin(ImportExportModelAdmin):
@@ -260,12 +271,14 @@ class TeacherAdmin(ImportExportModelAdmin):
         return ", ".join([dept.name for dept in obj.departments.all()])
     get_departments.short_description = 'Departments'
 
+
 @admin.register(Grade)
 class GradeAdmin(ImportExportModelAdmin):
     resource_class = GradeResource
     list_display = ('id', 'name', 'department')
     search_fields = ('name', 'department__name')
     list_filter = ('department',)
+
 
 @admin.register(Student)
 class StudentAdmin(ImportExportModelAdmin):
@@ -283,6 +296,7 @@ class StudentAdmin(ImportExportModelAdmin):
         return obj.grade.name if obj.grade else '未分配'
     get_grade.short_description = 'Grade'
 
+
 @admin.register(CoursePrototype)
 class CoursePrototypeAdmin(ImportExportModelAdmin):
     resource_class = CoursePrototypeResource
@@ -290,33 +304,18 @@ class CoursePrototypeAdmin(ImportExportModelAdmin):
     search_fields = ('name', 'department__name')
     list_filter = ('department',)
 
-@admin.register(CourseInstance)
-class CourseInstanceAdmin(ImportExportModelAdmin):
-    resource_class = CourseInstanceResource
-    list_display = ('id', 'get_course_name', 'get_semester_name', 'location', 'capacity',
-                    'get_teacher_username', 'is_finalized')
-    search_fields = ('course_prototype__name', 'semester__name', 'location',
-                     'teacher__user__username', 'teacher__user__first_name', 'teacher__user__last_name')
-    list_filter = ('semester__name', 'is_finalized', 'teacher__user__username')
 
-    def get_course_name(self, obj):
-        return obj.course_prototype.name
-    get_course_name.short_description = 'Course Name'
+class CourseScheduleInline(admin.TabularInline):
+    model = CourseSchedule
+    extra = 1
+    fields = ('day', 'period', 'start_week', 'end_week', 'frequency', 'exceptions')
 
-    def get_semester_name(self, obj):
-        return obj.semester.name
-    get_semester_name.short_description = 'Semester Name'
-
-    def get_teacher_username(self, obj):
-        return obj.teacher.user.username if obj.teacher else '未分配'
-    get_teacher_username.short_description = 'Teacher Username'
 
 @admin.register(CourseSchedule)
-class CourseScheduleAdmin(ImportExportModelAdmin):
-    resource_class = CourseScheduleResource
-    list_display = ('id', 'get_course_instance_id', 'get_day_display', 'get_period_display')
-    search_fields = ('course_instance__id', 'day', 'period')
-    list_filter = ('day', 'period', 'course_instance__id')
+class CourseScheduleAdmin(admin.ModelAdmin):
+    list_display = ('course_instance', 'day', 'period', 'start_week', 'end_week', 'frequency', 'exceptions')
+    list_filter = ('day', 'period', 'frequency')
+    search_fields = ('course_instance__course_prototype__name', 'day')
 
     def get_course_instance_id(self, obj):
         return obj.course_instance.id
@@ -330,6 +329,30 @@ class CourseScheduleAdmin(ImportExportModelAdmin):
         return obj.get_period_display()
     get_period_display.short_description = 'Period'
 
+
+@admin.register(CourseInstance)
+class CourseInstanceAdmin(ImportExportModelAdmin):
+    resource_class = CourseInstanceResource
+    list_display = ('id', 'get_course_name', 'get_semester_name', 'location', 'capacity',
+                    'get_teacher_username', 'is_finalized')
+    search_fields = ('course_prototype__name', 'semester__name', 'location',
+                     'teacher__user__username', 'teacher__user__first_name', 'teacher__user__last_name')
+    list_filter = ('semester__name', 'is_finalized', 'teacher__user__username')
+    inlines = [CourseScheduleInline]
+
+    def get_course_name(self, obj):
+        return obj.course_prototype.name
+    get_course_name.short_description = 'Course Name'
+
+    def get_semester_name(self, obj):
+        return obj.semester.name
+    get_semester_name.short_description = 'Semester'
+
+    def get_teacher_username(self, obj):
+        return obj.teacher.user.username if obj.teacher else '无'
+    get_teacher_username.short_description = 'Teacher Username'
+
+
 @admin.register(Semester)
 class SemesterAdmin(ImportExportModelAdmin):
     resource_class = SemesterResource
@@ -337,6 +360,7 @@ class SemesterAdmin(ImportExportModelAdmin):
                     'selection_start_week', 'selection_end_week', 'current_week')
     search_fields = ('name',)
     list_filter = ('start_date', 'end_date')
+
 
 @admin.register(PunishmentRecord)
 class PunishmentRecordAdmin(ImportExportModelAdmin):
@@ -350,6 +374,7 @@ class PunishmentRecordAdmin(ImportExportModelAdmin):
         return obj.student.user.username
     get_student_username.short_description = 'Student Username'
 
+
 @admin.register(RewardRecord)
 class RewardRecordAdmin(ImportExportModelAdmin):
     resource_class = RewardRecordResource
@@ -361,6 +386,7 @@ class RewardRecordAdmin(ImportExportModelAdmin):
     def get_student_username(self, obj):
         return obj.student.user.username
     get_student_username.short_description = 'Student Username'
+
 
 @admin.register(S_Grade)
 class S_GradeAdmin(ImportExportModelAdmin):
@@ -378,11 +404,13 @@ class S_GradeAdmin(ImportExportModelAdmin):
         return obj.course_instance.id
     get_course_instance.short_description = 'Course Instance ID'
 
+
 @admin.register(Class)
 class ClassAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'grade', 'department')
     search_fields = ('name', 'grade__name', 'department__name')
     list_filter = ('grade', 'department',)
+
 
 @admin.register(ClassInstance)
 class ClassInstanceAdmin(admin.ModelAdmin):
@@ -394,8 +422,8 @@ class ClassInstanceAdmin(admin.ModelAdmin):
         return ", ".join([student.user.username for student in obj.selected_students.all()])
     get_selected_students.short_description = 'Selected Students'
 
-# ============ 4. 自定义 UserAdmin 也可保留 ============
 
+# ============ 4. 自定义 UserAdmin ============
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 class ReadOnlyUserProfileInline(admin.StackedInline):
@@ -417,7 +445,6 @@ class ReadOnlyStudentInline(admin.StackedInline):
     model = Student
     can_delete = False
     verbose_name_plural = 'Student Profile'
-    #readonly_fields = ('user', 'department', 'student_class', 'grade', 'age', 'gender', 'id_number')
     readonly_fields = ('user',)
     max_num = 1
 
@@ -449,6 +476,6 @@ class SelectionBatchAdmin(ImportExportModelAdmin):
     search_fields = ('name', 'semester__name')
     list_filter = ('semester__name',)
 
+# 取消注册默认的 User，并注册自定义的 UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
-

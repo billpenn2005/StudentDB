@@ -72,6 +72,7 @@ class Student(models.Model):
 
     def __str__(self):
         return self.user.get_full_name()
+    
 class Semester(models.Model):
     name = models.CharField(max_length=50, unique=True)  # 例如 "2024春季"
     start_date = models.DateField()
@@ -79,9 +80,17 @@ class Semester(models.Model):
     selection_start_week = models.PositiveIntegerField(default=1)
     selection_end_week = models.PositiveIntegerField(default=2)
     current_week = models.PositiveIntegerField(default=1)  # 当前周数
+    total_weeks = models.PositiveIntegerField(default=20, help_text="学期总周数")
+    is_current = models.BooleanField(default=False)  # 新增字段，用于标识当前学期
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        if self.is_current:
+            # 将其他学期的 is_current 设为 False
+            Semester.objects.filter(is_current=True).update(is_current=False)
+        super().save(*args, **kwargs)
     
 class SelectionBatch(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -144,13 +153,27 @@ class CourseSchedule(models.Model):
     
     day = models.CharField(max_length=10, choices=DAY_PERIOD_CHOICES)
     period = models.PositiveSmallIntegerField(choices=PERIOD_CHOICES)
-    
+    start_week = models.PositiveIntegerField(default=1, help_text="课程开始的周数")
+    end_week = models.PositiveIntegerField(help_text="课程结束的周数", default=1)
+    frequency = models.PositiveSmallIntegerField(default=1, help_text="上课频率（如1表示每周一次，2表示每两周一次）")
+    exceptions = models.JSONField(default=list, blank=True, help_text="例外周数，课程在这些周不进行")
     class Meta:
-        unique_together = ('course_instance', 'day', 'period')  # 防止重复时间
-    
+        unique_together = ('course_instance', 'day', 'period', 'start_week', 'frequency')
+        verbose_name = "课程时间安排"
+        verbose_name_plural = "课程时间安排"    
     def __str__(self):
         return f"{self.get_day_display()} 第{self.get_period_display()}节 - {self.course_instance}"
-
+    def is_active_in_week(self, week_number):
+        """
+        判断该课程在指定的周数是否有课。
+        """
+        if week_number < self.start_week or week_number > self.end_week:
+            return False
+        if (week_number - self.start_week) % self.frequency != 0:
+            return False
+        if week_number in self.exceptions:
+            return False
+        return True
 class S_Grade(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grades')
     course_instance = models.ForeignKey(CourseInstance, on_delete=models.CASCADE, related_name='grades')

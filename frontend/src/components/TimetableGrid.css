@@ -1,0 +1,30 @@
+/* src/components/TimetableGrid.css */
+
+.timetable-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(5, 1fr);
+    border: 1px solid #ddd;
+}
+
+.timetable-grid-header, .timetable-grid-row {
+    display: contents;
+}
+
+.header-cell, .period-cell, .course-cell {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+}
+
+.header-cell {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
+
+.course-cell {
+    cursor: pointer;
+}
+
+.course-cell:hover {
+    background-color: #e6f7ff;
+}

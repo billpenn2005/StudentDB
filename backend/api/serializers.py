@@ -47,10 +47,16 @@ class CoursePrototypeSerializer(serializers.ModelSerializer):
 # backend/api/serializers.py
 
 class CourseScheduleSerializer(serializers.ModelSerializer):
+    is_active = serializers.SerializerMethodField()
     class Meta:
         model = CourseSchedule
-        fields = ['id', 'day', 'period']
+        fields = ['id', 'day', 'period', 'start_week', 'end_week', 'frequency', 'exceptions', 'is_active']
 
+    def get_is_active(self, obj):
+        week_number = self.context.get('week_number')
+        if week_number is None:
+            return False
+        return obj.is_active_in_week(week_number)
 
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.StringRelatedField(many=True, read_only=True)
@@ -104,7 +110,7 @@ class TeacherSerializer(serializers.ModelSerializer):
 class SemesterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Semester
-        fields = ['id', 'name', 'start_date', 'end_date', 'selection_start_week', 'selection_end_week', 'current_week']
+        fields = ['id', 'name', 'start_date', 'end_date', 'selection_start_week', 'selection_end_week', 'current_week', 'total_weeks']
 
 class PunishmentRecordSerializer(serializers.ModelSerializer):
     student = serializers.StringRelatedField(read_only=True)
@@ -207,6 +213,8 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         schedules_data = validated_data.pop('schedules', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         selected_students = validated_data.pop('selected_students', None)
         eligible_classes = validated_data.pop('eligible_classes', None)
         selection_batch = validated_data.pop('selection_batch', None)

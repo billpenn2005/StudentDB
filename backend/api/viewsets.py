@@ -11,7 +11,7 @@ from .serializers import (
     UserSerializer, GradeSerializer, StudentSerializer, TeacherSerializer, S_GradeSerializer,
     SemesterSerializer, SemesterCreateUpdateSerializer,
     PunishmentRecordSerializer, RewardRecordSerializer,
-    PunishmentRecordCreateSerializer, RewardRecordCreateSerializer,SelectionBatchSerializer
+    PunishmentRecordCreateSerializer, RewardRecordCreateSerializer,SelectionBatchSerializer,CourseScheduleSerializer
 )
 from django.db import transaction
 from rest_framework import status
@@ -39,11 +39,35 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
     """
     课程实例的 ViewSet
     """
+
     queryset = CourseInstance.objects.all()
     serializer_class = CourseInstanceSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['teacher']  # 允许通过teacher字段过滤
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def schedules_by_week(self, request, pk=None):
+        course_instance = self.get_object()  # 从 CourseInstanceViewSet 获取当前对象
+        
+        week_number = request.query_params.get('week_number')
+        if not week_number:
+            return Response({'detail': '请提供week_number参数'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            week_number = int(week_number)
+        except ValueError:
+            return Response({'detail': 'week_number必须为整数'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 拿到这门课程实例的所有排课
+        schedules = course_instance.schedules.all()
+
+        # 如果要判断某个周是否上课，可以在 serializer 里做，也可以在这里做过滤
+        # 比如：只返回这个周有课的排课
+        active_schedules = [s for s in schedules if s.is_active_in_week(week_number)]
+
+        serializer = CourseScheduleSerializer(active_schedules, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsTeacherUser, IsTeacherOfCourse])
     def publish_grades(self, request, pk=None):
@@ -152,7 +176,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
     def enrolled_students(self, request, pk=None):
         try:
             course_instance = self.get_object()
-            enrolled_students = course_instance.enrolled_students.all()  # 假设有相关的关联
+            enrolled_students = course_instance.selected_students.all()
             serializer = UserSerializer(enrolled_students, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except CourseInstance.DoesNotExist:
@@ -257,7 +281,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         API 5: 获取某课程的详细信息
         """
         course_instance = self.get_object()
-        serializer = self.get_serializer(course_instance)
+        week_number = request.query_params.get('week_number', None)
+        serializer = self.get_serializer(course_instance, context={'week_number': week_number})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
@@ -635,11 +660,26 @@ class SemesterViewSet(viewsets.ModelViewSet):
     """
     queryset = Semester.objects.all()
     permission_classes = [IsAuthenticated, IsAdminUser]
-    
+    serializer_class = SemesterSerializer
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return SemesterCreateUpdateSerializer
         return SemesterSerializer
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def current(self, request):
+        """
+        获取当前学期的信息
+        """
+        try:
+            current_semester = Semester.objects.get(is_current=True)
+            serializer = self.get_serializer(current_semester)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Semester.DoesNotExist:
+            return Response({'detail': '当前学期未设置'}, status=status.HTTP_404_NOT_FOUND)
+        except Semester.MultipleObjectsReturned:
+            return Response({'detail': '存在多个当前学期，请检查数据'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -694,7 +734,7 @@ class RewardRecordViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return RewardRecordCreateSerializer
-        return RewardRecordCreateSerializer
+        return RewardRecordSerializer  # 正确返回读取序列化器
 
     def get_queryset(self):
         user = self.request.user

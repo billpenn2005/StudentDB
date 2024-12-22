@@ -17,7 +17,6 @@ import EnterGrades from './components/EnterGrades';
 import MyGrades from './components/MyGrades';
 import MyRankings from './components/MyRankings';
 import ManageGrades from './components/ManageGrades';
-
 import { AuthContext } from './contexts/AuthContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -81,6 +80,9 @@ const App = () => {
                                         <Link to="/course-selection">选课</Link>
                                     </Menu.Item>
                                 </SubMenu>
+                                <Menu.Item key="6">
+                                    <Link to="/timetable">课表</Link>
+                                </Menu.Item>
                             </>
                         )}
                         {(isTeacher || isAdmin) && (
@@ -101,6 +103,9 @@ const App = () => {
                                 {/* 新增奖惩管理入口 */}
                                 <Menu.Item key="99">
                                     <Link to="/punishments">奖惩管理</Link>
+                                </Menu.Item>
+                                <Menu.Item key="8">
+                                    <Link to="/timetable">课表</Link>
                                 </Menu.Item>
                             </>
                         )}
@@ -148,11 +153,7 @@ const App = () => {
                                 <CourseSelection />
                             </RoleProtectedRoute>
                         } />
-                        <Route path="/timetable" element={
-                            <RoleProtectedRoute roles={['Student']}>
-                                <Timetable />
-                            </RoleProtectedRoute>
-                        } />
+
                         <Route path="/my-grades" element={
                             <RoleProtectedRoute roles={['Student']}>
                                 <MyGrades />
@@ -198,6 +199,12 @@ const App = () => {
                             </RoleProtectedRoute>
                         }
                         />
+                        {/* 公共路由 */}
+                        <Route path="/timetable" element={
+                            <RoleProtectedRoute roles={['Student', 'Teacher', 'Admin']}>
+                                <Timetable />
+                            </RoleProtectedRoute>
+                        } />
                         <Route path="/change-password" element={
                             <RoleProtectedRoute roles={['Student', 'Teacher', 'Admin']}>
                                 <ChangePassword />
