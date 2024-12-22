@@ -12,8 +12,33 @@ from .models import (
     Student, UserProfile, CourseInstance, CourseSchedule, S_Grade,
     Semester, PunishmentRecord, RewardRecord, SelectionBatch
 )
+from django.contrib.auth.hashers import make_password
+from django.db import transaction
 
 # ============ 1. 定义 Resource 类（批量导入导出） ============
+
+class UserResource(resources.ModelResource):
+    password = fields.Field(
+        column_name='password',
+        attribute='password',
+        widget=widgets.CharWidget()
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name', 'last_name', 'password')
+        import_id_fields = ('username',)
+
+    def before_import_row(self, row, **kwargs):
+        # 对密码进行哈希处理
+        if 'password' in row:
+            row['password'] = make_password(row['password'])
+
+    def after_import_instance(self, instance, new, row, **kwargs):
+        # 如果是新创建的用户，设置密码
+        if new:
+            instance.set_password(row['password'])
+            instance.save()
 
 class SelectionBatchResource(resources.ModelResource):
     semester = fields.Field(
@@ -61,6 +86,39 @@ class TeacherResource(resources.ModelResource):
         fields = ('id', 'user', 'departments',)
 
 
+# backend/api/admin.py
+class UserWidget(widgets.ForeignKeyWidget):
+    """
+    自定义 Widget，用于在导入时获取或创建 User 对象。
+    """
+    def get_queryset(self, value, row, *args, **kwargs):
+        return User.objects.all()
+
+    def clean(self, value, row=None, *args, **kwargs):
+        # 尝试获取 User 对象
+        try:
+            return User.objects.get(**{self.field: value})
+        except User.DoesNotExist:
+            # 如果 User 不存在，则创建一个新的 User
+            username = value
+            email = row.get('email')
+            first_name = row.get('first_name')
+            last_name = row.get('last_name')
+            password = row.get('password') or 'defaultpassword123'
+
+            # 创建新的 User 对象
+            user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            user.set_password(password)
+            user.save()
+            return user
+from import_export import resources, fields
+from .models import Student, Department, Class, Grade
+
 class StudentResource(resources.ModelResource):
     grade = fields.Field(
         column_name='grade',
@@ -80,16 +138,40 @@ class StudentResource(resources.ModelResource):
     user = fields.Field(
         column_name='user',
         attribute='user',
-        widget=widgets.ForeignKeyWidget(User, 'username')
+        widget=UserWidget(User, 'username')  # 使用自定义的 UserWidget
     )
-    
+    email = fields.Field(
+        column_name='email',
+        attribute='email',
+        widget=widgets.CharWidget()
+    )
+    first_name = fields.Field(
+        column_name='first_name',
+        attribute='first_name',
+        widget=widgets.CharWidget()
+    )
+    last_name = fields.Field(
+        column_name='last_name',
+        attribute='last_name',
+        widget=widgets.CharWidget()
+    )
+    password = fields.Field(
+        column_name='password',
+        attribute='password',
+        widget=widgets.CharWidget()
+    )
+
     class Meta:
         model = Student
         import_id_fields = ('id',)
         fields = (
             'id', 'user', 'age', 'gender', 'id_number',
-            'department', 'student_class', 'grade'
+            'department', 'student_class', 'grade',
+            'email', 'first_name', 'last_name', 'password'
         )
+        skip_unchanged = True
+        report_skipped = True
+
 
 
 class CoursePrototypeResource(resources.ModelResource):
@@ -161,6 +243,7 @@ class CourseScheduleResource(resources.ModelResource):
         fields = (
             'id', 'course_instance', 'day', 'period',
         )
+
 
 
 class SemesterResource(resources.ModelResource):
