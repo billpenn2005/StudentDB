@@ -58,15 +58,15 @@ class ClassInstance(models.Model):
         return f"ClassInstance {self.id}"
 class Student(models.Model):
     GENDER_CHOICES = (
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
+        ('Male', 'Male'),
+        ('Female', 'Female'),
+        ('Other', 'Other'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     department = models.ForeignKey(Department, related_name='students', on_delete=models.SET_NULL, null=True)
     age = models.PositiveIntegerField()
     student_class = models.ForeignKey('Class', related_name='students', on_delete=models.SET_NULL, null=True)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    gender = models.CharField(max_length=6, choices=GENDER_CHOICES)
     id_number = models.CharField(max_length=18, unique=True)  # 身份证号码
     grade = models.ForeignKey(Grade, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')  # 改为 ForeignKey
 
