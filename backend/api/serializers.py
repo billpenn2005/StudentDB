@@ -259,48 +259,54 @@ class StudentSerializer(serializers.ModelSerializer):
 class S_GradeSerializer(serializers.ModelSerializer):
     student = serializers.StringRelatedField(read_only=True)
     course_instance = serializers.StringRelatedField(read_only=True)
-    course_instance_id = serializers.PrimaryKeyRelatedField(
-        queryset=CourseInstance.objects.all(), source='course_instance', write_only=True
-    )
+
+    # 让前端可以传入 student_id 和 course_instance_id 来新建记录
     student_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(groups__name='Student'), source='student', write_only=True
+        queryset=User.objects.filter(groups__name='Student'),
+        source='student',
+        write_only=True
     )
+    course_instance_id = serializers.PrimaryKeyRelatedField(
+        queryset=CourseInstance.objects.all(),
+        source='course_instance',
+        write_only=True
+    )
+
+    # 新增 attempt 字段，让前端可以指定首考、补考、重修
+    attempt = serializers.IntegerField(required=False)
+
     is_published = serializers.SerializerMethodField()
     ranking = serializers.IntegerField(read_only=True)
-    semester = serializers.CharField(source='course_instance.semester.name', read_only=True)
+    semester = serializers.CharField(
+        source='course_instance.semester.name',
+        read_only=True
+    )
+
     class Meta:
         model = S_Grade
-        fields = ['id', 'student', 'student_id', 'course_instance', 'course_instance_id', 'daily_score', 'final_score', 'total_score', 'is_published', 'ranking', 'semester']
+        fields = [
+            'id', 'student', 'student_id',
+            'course_instance', 'course_instance_id',
+            'daily_score', 'final_score', 'total_score',
+            'attempt', 'is_published', 'ranking', 'semester',
+        ]
         read_only_fields = ['id', 'student', 'course_instance', 'total_score']
 
     def validate(self, data):
-        # 确保教师只能给自己授课的课程实例打分
+        # 在这里，你可以做一下限制：只能修改你自己授课的课程，等等
         user = self.context['request'].user
         course_instance = data.get('course_instance')
-        
+
+        # 判断是不是教师，并且是不是此课程的老师
         if not hasattr(user, 'teacher_profile'):
             raise serializers.ValidationError("用户没有教师配置文件。")
-        
-        if not CourseInstance.objects.filter(id=course_instance.id, teacher=user.teacher_profile).exists():
+
+        if course_instance and course_instance.teacher != user.teacher_profile:
             raise serializers.ValidationError("您无权给该课程实例打分。")
+
         return data
 
-    def create(self, validated_data):
-        return S_Grade.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        instance.daily_score = validated_data.get('daily_score', instance.daily_score)
-        instance.final_score = validated_data.get('final_score', instance.final_score)
-        instance.save()
-        return instance
-    
     def get_is_published(self, obj):
         return obj.course_instance.is_grades_published
-
-    def get_ranking(self, obj):
-        # 假设在queryset中已使用annotate标记了ranking字段
-        # ranking计算逻辑在ViewSet中实现
-        return getattr(obj, 'ranking', None)
-
 
 # backend/api/serializers.py

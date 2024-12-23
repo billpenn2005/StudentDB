@@ -171,7 +171,17 @@ class StudentResource(resources.ModelResource):
         )
         skip_unchanged = True
         report_skipped = True
-
+        
+    def after_import_instance(self, instance, new, row, **kwargs):
+        # 调用父类方法（若需要）
+        super().after_import_instance(instance, new, row, **kwargs)
+        from django.contrib.auth.models import Group
+        try:
+            # 获取名为 "Student" 的组，让用户加入
+            student_group = Group.objects.get(name='Student')
+            instance.user.groups.add(student_group)
+        except Group.DoesNotExist:
+            pass
 
 
 class CoursePrototypeResource(resources.ModelResource):
@@ -474,7 +484,7 @@ class RewardRecordAdmin(ImportExportModelAdmin):
 @admin.register(S_Grade)
 class S_GradeAdmin(ImportExportModelAdmin):
     resource_class = S_GradeResource
-    list_display = ('id', 'get_student_username', 'get_course_instance', 'daily_score', 'final_score', 'total_score')
+    list_display = ('id', 'get_student_username', 'get_course_instance', 'daily_score', 'final_score', 'total_score', 'attempt')
     search_fields = ('student__user__username', 'student__user__first_name', 'student__user__last_name',
                      'course_instance__course_prototype__name')
     list_filter = ('course_instance__course_prototype__name',)
@@ -544,9 +554,9 @@ class CustomUserAdmin(BaseUserAdmin):
         return super().get_inline_instances(request, obj)
 
     def get_user_type(self, obj):
-        if hasattr(obj, 'teacher'):
+        if obj.groups.filter(name='Teacher').exists():
             return "Teacher"
-        elif hasattr(obj, 'student'):
+        elif obj.groups.filter(name='Student').exists():
             return "Student"
         else:
             return "Other"

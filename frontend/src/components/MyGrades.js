@@ -41,24 +41,22 @@ const StudentGradesAndRanking = () => {
     const fetchGradesAndRankings = async () => {
       setLoading(true);
       try {
-        // 调用获取所有成绩的 API
+        // 1. 获取所有成绩
         const res = await axiosInstance.get('s-grades/my_all_grades/');
+        // 注意：如果后端没做分页，res.data 可能就是数组；如果做了分页，可能是 {results: [...]}
         const allGrades = res.data.results || res.data;
         setGrades(allGrades);
-        console.log('All Grades:', allGrades);
 
-        // 调用获取排名的 API（假设排名也是基于所有成绩）
+        // 2. 获取排名
         const rankRes = await axiosInstance.get('s-grades/my_rankings/');
         const rankData = rankRes.data.results || rankRes.data;
         setRankings(rankData);
-        console.log('Rankings:', rankData);
 
-        // 假设 API 返回当前学期信息，或者从成绩中提取
+        // 3. 设定当前学期
         if (allGrades.length > 0) {
-          const semesters = [...new Set(allGrades.map(grade => grade.semester))];
-          // 假设最新的 semester 是当前学期
-          const sortedSemesters = semesters.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-          setCurrentSemester(sortedSemesters[0]);
+          // 你需要从后端得到更准确的学期信息，这里只是示范
+          const semesters = [...new Set(allGrades.map(g => g.semester))];
+          setCurrentSemester(semesters[0]); 
         }
       } catch (error) {
         console.error('Error fetching grades and rankings:', error);
@@ -71,42 +69,63 @@ const StudentGradesAndRanking = () => {
   }, []);
 
   // 过滤当前学期和历史学期的成绩
-  const currentSemesterGrades = grades.filter(grade => grade.semester === currentSemester);
-  const historicalSemesterGrades = grades.filter(grade => grade.semester !== currentSemester);
+  const currentSemesterGrades = grades.filter(g => g.semester === currentSemester);
+  const historicalSemesterGrades = grades.filter(g => g.semester !== currentSemester);
 
+  // 在这里新增一列“考试轮次”
   const columns = [
     {
       title: '课程名称 - 学期',
       dataIndex: 'course_instance',
       key: 'course_instance',
       render: (text, record) => (
-        <span>{record.course_instance.name} - {record.semester}</span>
+        // record.course_instance 可能是字符串或对象，视后端返回而定
+        <span>
+          {typeof record.course_instance === 'object' 
+            ? record.course_instance.name 
+            : record.course_instance}
+          {' - '}
+          {record.semester}
+        </span>
       ),
+    },
+    {
+      title: '考试轮次',
+      dataIndex: 'attempt',
+      key: 'attempt',
+      render: (val) => {
+        switch (val) {
+          case 1: return '首考';
+          case 2: return '补考';
+          case 3: return '重修';
+          default: return `其他(${val})`;
+        }
+      },
     },
     {
       title: '平时分',
       dataIndex: 'daily_score',
       key: 'daily_score',
-      render: (score) => score !== null ? score : '未发布',
+      render: (score) => (score !== null ? score : '未发布'),
     },
     {
       title: '期末分',
       dataIndex: 'final_score',
       key: 'final_score',
-      render: (score) => score !== null ? score : '未发布',
+      render: (score) => (score !== null ? score : '未发布'),
     },
     {
       title: '总分',
       dataIndex: 'total_score',
       key: 'total_score',
-      render: (score) => score !== null ? score : '未发布',
+      render: (score) => (score !== null ? score : '未发布'),
     },
     {
       title: '排名',
       dataIndex: 'rank',
       key: 'rank',
-      render: (rank) => rank !== null ? rank : '未发布',
-    }
+      render: (rank) => (rank !== null ? rank : '未发布'),
+    },
   ];
 
   if (loading) {
@@ -120,9 +139,14 @@ const StudentGradesAndRanking = () => {
   return (
     <div style={{ padding: '20px' }}>
       <Title level={2}>我的成绩和排名</Title>
-      <Button type="primary" onClick={handleExportMyTranscript} style={{ marginBottom: '20px' }}>
+      <Button 
+        type="primary" 
+        onClick={handleExportMyTranscript} 
+        style={{ marginBottom: '20px' }}
+      >
         导出成绩单
       </Button>
+
       <Tabs defaultActiveKey="1">
         <TabPane tab="本学期成绩" key="1">
           {currentSemesterGrades.length === 0 ? (
@@ -131,7 +155,7 @@ const StudentGradesAndRanking = () => {
             <Table
               dataSource={currentSemesterGrades}
               columns={columns}
-              rowKey={(record, index) => `${record.course_instance.id}-${index}`}
+              rowKey={(record, index) => `${record.id}-${index}`} 
               pagination={{ pageSize: 10 }}
             />
           )}
@@ -143,18 +167,18 @@ const StudentGradesAndRanking = () => {
             <Table
               dataSource={historicalSemesterGrades}
               columns={columns}
-              rowKey={(record, index) => `${record.course_instance.id}-${index}`}
+              rowKey={(record, index) => `${record.id}-${index}`}
               pagination={{ pageSize: 10 }}
             />
           )}
         </TabPane>
       </Tabs>
-      {/* 如果需要显示综合排名，可以在这里添加 */}
+
       <Title level={3} style={{ marginTop: '40px' }}>我的综合排名</Title>
       <Table
         dataSource={rankings}
         columns={columns}
-        rowKey={(record, index) => `${record.course_instance}-${index}`}
+        rowKey={(record, index) => `${record.id}-${index}`}
         pagination={false}
       />
     </div>

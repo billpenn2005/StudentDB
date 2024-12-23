@@ -846,7 +846,89 @@ class BulkImportViewSet(viewsets.ViewSet):
                 errors.append({'row': row, 'error': str(e)})
         
         return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsTeacherUser, IsTeacherOfCourse])
+    def bulk_update_grades(self, request):
+        """
+        批量更新/创建课程实例中学生的成绩，
+        现在允许传入 attempt 表示是首考/补考/重修。
+        期望接收一个列表，每个对象包含：
+        {
+           "student_id": <int>,
+           "daily_score": <float>,
+           "final_score": <float>,
+           "attempt": <int, optional>
+        }
+        """
+        data = request.data
+        if not isinstance(data, list):
+            return Response({'detail': '预期接收一个成绩条目列表(list)。'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        course_instance_id = request.query_params.get('course_instance_id')
+        if not course_instance_id:
+            return Response({'detail': '需要提供 course_instance_id 查询参数。'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            course_instance = CourseInstance.objects.get(id=course_instance_id)
+        except CourseInstance.DoesNotExist:
+            return Response({'detail': f'id={course_instance_id} 的课程实例不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 确保教师拥有该课程实例的权限
+        user = request.user
+        if course_instance.teacher != user.teacher_profile:
+            return Response({'detail': '您没有权限修改该课程实例的成绩。'}, status=status.HTTP_403_FORBIDDEN)
 
+        updated_grades = []
+        errors = []
+
+        try:
+            with transaction.atomic():
+                for entry in data:
+                    student_id = entry.get('student_id')
+                    daily_score = entry.get('daily_score')
+                    final_score = entry.get('final_score')
+                    attempt = entry.get('attempt', 1)  # 若前端没传，默认为首考(1)
+
+                    if any(x is None for x in [student_id, daily_score, final_score]):
+                        errors.append({
+                            'student_id': student_id,
+                            'detail': 'student_id / daily_score / final_score 为必填字段'
+                        })
+                        continue
+
+                    # 1. 获取学生
+                    try:
+                        student_user = User.objects.get(id=student_id, groups__name='Student')
+                    except User.DoesNotExist:
+                        errors.append({
+                            'student_id': student_id,
+                            'detail': '用户不存在或不是学生'
+                        })
+                        continue
+
+                    # 2. 获取/创建 S_Grade
+                    #   注意现在 unique_together = (student, course_instance, attempt)
+                    #   因此如果本轮 attempt 已存在，就更新；否则新建
+                    s_grade, created = S_Grade.objects.get_or_create(
+                        student=student_user,
+                        course_instance=course_instance,
+                        attempt=attempt
+                    )
+                    s_grade.daily_score = daily_score
+                    s_grade.final_score = final_score
+                    s_grade.save()  # 这会自动计算 total_score
+
+                    updated_grades.append(S_GradeSerializer(s_grade).data)
+
+        except Exception as e:
+            return Response({'detail': f'发生错误: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        response_data = {
+            'updated_grades': updated_grades,
+            'errors': errors
+        }
+        status_code = status.HTTP_200_OK if not errors else status.HTTP_207_MULTI_STATUS
+        return Response(response_data, status=status_code)
 
     # 类似的方法可以为 CoursePrototype 和 CourseInstance 实现
 from reportlab.pdfbase import pdfmetrics

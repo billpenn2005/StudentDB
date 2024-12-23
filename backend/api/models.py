@@ -174,24 +174,58 @@ class CourseSchedule(models.Model):
         if week_number in self.exceptions:
             return False
         return True
+# backend/api/models.py (示例节选)
+
 class S_Grade(models.Model):
+    """
+    学生成绩表，用于记录每个学生在每门课程实例下的成绩。
+    现在新增 attempt 字段，以区分首考、补考、重修等多次考试。
+    """
+
+    ATTEMPT_CHOICES = [
+        (1, '首考'),
+        (2, '补考'),
+        (3, '重修'),
+        # 如果需要更多次数，还可继续添加
+    ]
+
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='grades')
     course_instance = models.ForeignKey(CourseInstance, on_delete=models.CASCADE, related_name='grades')
+
+    # 新增字段：表示第几次考试，默认为 1（首考）
+    attempt = models.PositiveSmallIntegerField(
+        choices=ATTEMPT_CHOICES,
+        default=1,
+        verbose_name='考试轮次'
+    )
+
     daily_score = models.FloatField(default=0.0)  # 平时分
     final_score = models.FloatField(default=0.0)  # 期末分
     total_score = models.FloatField(default=0.0)  # 总分
 
+    # 原有的 unique_together = ('student', 'course_instance') 不再适用，
+    # 因为要允许同一个学生在同一门课下出现多条记录（不同的 attempt）。
+    # 因此改为包含 attempt:
     class Meta:
-        unique_together = ('student', 'course_instance')  # 确保每个学生在每个课程实例中只有一条成绩记录
+        unique_together = ('student', 'course_instance', 'attempt')  
+        # 这样可以确保 (学生, 课程, 考试轮次) 的唯一性
 
     def save(self, *args, **kwargs):
+        # 自动计算 total_score
         daily_weight = self.course_instance.daily_weight
         final_weight = self.course_instance.final_weight
-        self.total_score = (self.daily_score * (daily_weight / 100)) + (self.final_score * (final_weight / 100))
+        self.total_score = (
+            self.daily_score * (daily_weight / 100.0)
+            + self.final_score * (final_weight / 100.0)
+        )
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.student.username} - {self.course_instance} - 总分: {self.total_score}"
+        return (
+            f"{self.student.username} - {self.course_instance} - "
+            f"总分: {self.total_score} (attempt={self.attempt})"
+        )
+
 
 class PunishmentRecord(models.Model):
     PUNISHMENT_TYPES = (
