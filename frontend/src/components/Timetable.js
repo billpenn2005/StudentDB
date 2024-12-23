@@ -52,18 +52,11 @@ const Timetable = () => {
 
       const userGroups = user.groups.map(g => g.trim().toLowerCase());
       let endpoint = '';
-      const params = new URLSearchParams({
-        teacher: user.teacher_id,
-        semester: currentSemester
-      });
-      const params1 = new URLSearchParams({
-        student: user.student_id,
-        semester: currentSemester
-      });
+
       if (userGroups.includes('teacher')) {
-        endpoint = `/course-instances/?teacher=${teacher_id}&semester=${currentSemester.name}`;
+        endpoint = `/course-instances/?teacher=${user.teacher_id}&semester=${currentSemester.name}`;
       } else if (userGroups.includes('student')) {
-        endpoint = `/course-instances/?student=${student_id}&semester=${currentSemester.name}`;
+        endpoint = `/course-instances/?student=${user.student_id}&semester=${currentSemester.name}`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
