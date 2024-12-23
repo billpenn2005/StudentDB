@@ -35,7 +35,26 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    const fetchSelectedCourses = useCallback(async () => {        
+    const fetchBatchBasedSelectedCourses = useCallback(async (selectedBatchId) => {
+        if (!selectedBatchId) {
+            console.error('未提供选课批次ID');
+            return [];
+        }
+
+        try {
+            const response = await axiosInstance.get(`selection-batches/${selectedBatchId}/selected_courses/`);
+            console.log('Selected Courses:', response.data.selected_courses);
+            const courses = response.data.selected_courses || [];
+            setSelectedCourses(courses);
+            return courses;
+        } catch (error) {
+            console.error('Failed to fetch selected courses:', error);
+            setSelectedCourses([]);
+            return [];
+        }
+    }, []);
+
+    const fetchSelectedCourses = useCallback(async () => {
         try {
             const response = await axiosInstance.get('selection-batches/current/selected_courses/');
             console.log('Selected Courses:', response.data.selected_courses);
@@ -44,7 +63,7 @@ export const AuthProvider = ({ children }) => {
             console.error('Failed to fetch selected courses:', error);
             setSelectedCourses([]);
         }
-    }, [user?.student]);
+    }, []);
 
     const fetchCurrentSemester = useCallback(async () => {
         try {
@@ -57,45 +76,72 @@ export const AuthProvider = ({ children }) => {
 
     // 主初始化函数
     useEffect(() => {
+        if (!isAuthenticated || dataFetchedRef.current) return;
+
         const initializeData = async () => {
-            if (isAuthenticated && !dataFetchedRef.current) {
-                try {
-                    setLoading(true);
-                    const fetchedUser = await fetchUser();
-                    if (fetchedUser) {
-                        await Promise.all([
-                            fetchSelectedCourses(),
-                            fetchCurrentSemester()
-                        ]);
-                    }
-                    dataFetchedRef.current = true;
-                } catch (error) {
-                    console.error('初始化数据失败:', error);
-                } finally {
-                    setLoading(false);
+            try {
+                setLoading(true);
+                const fetchedUser = await fetchUser();
+                if (fetchedUser) {
+                    await Promise.all([
+                        fetchSelectedCourses(),
+                        fetchCurrentSemester()
+                    ]);
                 }
-            } else {
-                // 如果未认证，直接结束加载
-                setLoading(false);
                 dataFetchedRef.current = true;
+            } catch (error) {
+                console.error('初始化数据失败:', error);
+            } finally {
+                setLoading(false);
             }
         };
 
         initializeData();
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
 
+    // 路由导航逻辑
+    useEffect(() => {
+        if (user && !hasNavigated.current && location.pathname === '/') {
+            const userGroups = user.groups || [];
+            if (userGroups.includes('Student')) {
+                navigate('/student-dashboard');
+            } else if (userGroups.includes('Teacher')) {
+                navigate('/teacher-dashboard');
+            } else {
+                navigate('/dashboard');
+            }
+            hasNavigated.current = true;
+        }
+    }, [user, navigate, location.pathname]);
+
     const login = async (accessToken, refreshToken) => {
         try {
+            setLoading(true);
             localStorage.setItem('access_token', accessToken);
             localStorage.setItem('refresh_token', refreshToken);
             setIsAuthenticated(true);
+
             const fetchedUser = await fetchUser();
             if (fetchedUser) {
-                navigate('/dashboard');
+                const userGroups = fetchedUser.groups || [];
+                if (userGroups.includes('Student')) {
+                    navigate('/student-dashboard');
+                } else if (userGroups.includes('Teacher')) {
+                    navigate('/teacher-dashboard');
+                } else {
+                    navigate('/dashboard');
+                }
+                return true;
             }
+            return false;
         } catch (error) {
             console.error('登录失败:', error);
-            toast.error('登录失败，请检查用户名和密码');
+            setIsAuthenticated(false);
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            return false;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -110,19 +156,6 @@ export const AuthProvider = ({ children }) => {
         navigate('/');
     };
 
-    useEffect(() => {
-        if (user && !hasNavigated.current && location.pathname === '/') {
-            const userGroups = user.groups || [];
-            
-            if (userGroups.includes('Student')) {
-                navigate('/student-dashboard');
-            } else if (userGroups.includes('Teacher')) {
-                navigate('/teacher-dashboard');
-            }
-            hasNavigated.current = true;
-        }
-    }, [user, navigate, location.pathname]);
-
     return (
         <AuthContext.Provider value={{
             isAuthenticated,
@@ -133,9 +166,10 @@ export const AuthProvider = ({ children }) => {
             setUser,
             selectedCourses,
             fetchSelectedCourses,
+            fetchBatchBasedSelectedCourses, // 确保这里导出
             fetchUser,
             currentSemester,
-            fetchCurrentSemester,
+            fetchCurrentSemester
         }}>
             {children}
         </AuthContext.Provider>

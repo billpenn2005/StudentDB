@@ -436,7 +436,6 @@ class SelectionBatchViewSet(viewsets.ModelViewSet):
                 # 假设当前批次是开始和结束日期包围当前时间的批次
                 selection_batch = SelectionBatch.objects.filter(
                     start_selection_date__lte=timezone.now(),
-                    end_selection_date__gte=timezone.now()
                 ).first()
                 if not selection_batch:
                     return Response({'detail': '当前没有选课批次'}, status=status.HTTP_404_NOT_FOUND)

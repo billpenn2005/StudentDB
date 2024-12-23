@@ -25,10 +25,10 @@ const CourseSelection = () => {
         user,
         selectedCourses,
         fetchUser,
-        fetchSelectedCourses,
         loading: authLoading,
         currentSemester,
         fetchCurrentSemester,
+        fetchBatchBasedSelectedCourses, // 确保这里解构
     } = useContext(AuthContext);
 
     const [selectionBatches, setSelectionBatches] = useState([]);
@@ -106,6 +106,7 @@ const CourseSelection = () => {
             );
             if (currentBatch) {
                 setSelectedBatchId(currentBatch.id);
+                await fetchBatchBasedSelectedCourses(currentBatch.id); // Fetch selected courses
                 // Calculate the current week number
                 if (currentSemester) {
                     const semesterStart = new Date(currentSemester.start_date);
@@ -176,7 +177,7 @@ const CourseSelection = () => {
             message.success(response.data.detail || '选课成功');
             setModalVisible(false);
             await fetchUser(); // Re-fetch user info
-            await fetchSelectedCourses(selectedBatchId); // Re-fetch selected courses
+            await fetchBatchBasedSelectedCourses(selectedBatchId); // Re-fetch selected courses
             await fetchAvailableCourses(selectedBatchId); // Update available courses
         } catch (error) {
             console.error('Enroll Error:', error);
@@ -204,7 +205,7 @@ const CourseSelection = () => {
             console.log('Unenroll Response:', response.data); // Debug log
             message.success(response.data.detail || '退选成功');
             await fetchUser(); // Re-fetch user info
-            await fetchSelectedCourses(selectedBatchId); // Re-fetch selected courses
+            await fetchBatchBasedSelectedCourses(selectedBatchId); // Re-fetch selected courses
             await fetchAvailableCourses(selectedBatchId); // Update available courses
         } catch (error) {
             console.error('Unenroll Error:', error);
@@ -282,6 +283,7 @@ const CourseSelection = () => {
         if (selectedBatchId) {
             Promise.all([
                 fetchAvailableCourses(selectedBatchId),
+                fetchBatchBasedSelectedCourses(selectedBatchId),
             ]).finally(() => {
                 setLoading(false);
             });
@@ -289,14 +291,17 @@ const CourseSelection = () => {
             setCourses([]);
             setLoading(false);
         }
-    }, [selectedBatchId, fetchAvailableCourses]); // 移除fetchSelectedCourses依赖
+    }, [selectedBatchId, fetchAvailableCourses, fetchBatchBasedSelectedCourses]); // 移除fetchBatchBasedSelectedCourses依赖
 
     // Generate timetable whenever selected courses, week, or semester changes
     useEffect(() => {
         if (!authLoading && currentSemester && selectedCourses.length > 0) {
             generateTimetable();
         }
-    }, [authLoading, currentSemester, selectedWeek]); // 简化依赖
+        else {
+            setTimetableData([]);
+        }
+    }, [authLoading, currentSemester, selectedWeek, selectedCourses]); // 简化依赖
     // Compute selected time slots using useMemo for performance
     const selectedTimeSlots = useMemo(() => (
         Array.isArray(selectedCourses)

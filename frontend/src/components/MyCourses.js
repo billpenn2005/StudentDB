@@ -8,17 +8,26 @@ import axiosInstance from '../axiosInstance';
 const { Option } = Select;
 
 const SelectedCourses = () => {
-    const { selectedCourses, fetchSelectedCourses, fetchUser, loading: authLoading } = useContext(AuthContext);
+    const { 
+        selectedCourses, 
+        fetchUser,
+        fetchBatchBasedSelectedCourses,
+        loading: authLoading 
+    } = useContext(AuthContext);
+    
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [selectionBatches, setSelectionBatches] = useState([]);
     const [selectedBatchId, setSelectedBatchId] = useState(null);
+    const [BatchBasedSelectedCourse, setBatchBasedSelectedCourse] = useState([]);
 
+    // 加载选课批次
     useEffect(() => {
         const loadSelectionBatches = async () => {
             try {
                 const response = await axiosInstance.get('selection-batches/');
                 const batches = response.data.results || response.data;
+                console.log('Selection Batches:', batches);
                 setSelectionBatches(batches);
                 // 自动选择当前有效的批次
                 const now = new Date();
@@ -36,19 +45,30 @@ const SelectedCourses = () => {
         loadSelectionBatches();
     }, []);
 
+    // 加载已选课程
     useEffect(() => {
         const loadSelectedCourses = async () => {
             if (!selectedBatchId) {
+                setBatchBasedSelectedCourse([]);
                 setLoading(false);
                 return;
             }
-            setLoading(true);
-            await fetchSelectedCourses(selectedBatchId);
-            console.log('Selected Courses:', selectedCourses);
-            setLoading(false);
+            
+            try {
+                setLoading(true);
+                const courses = await fetchBatchBasedSelectedCourses(selectedBatchId);
+                setBatchBasedSelectedCourse(courses);
+            } catch (error) {
+                console.error('Failed to fetch selected courses:', error);
+                message.error('获取已选课程失败');
+                setBatchBasedSelectedCourse([]);
+            } finally {
+                setLoading(false);
+            }
         };
+        
         loadSelectedCourses();
-    }, [fetchSelectedCourses, selectedBatchId]);
+    }, [selectedBatchId, fetchBatchBasedSelectedCourses]);
 
     const handleUnenroll = (course) => {
         console.log('Unenrolling from course:', course.teacher?.user?.first_name);
@@ -64,7 +84,10 @@ const SelectedCourses = () => {
                     await axiosInstance.post(`course-instances/${course.id}/drop/`);
                     message.success('退选成功');
                     await fetchUser();
-                    await fetchSelectedCourses(selectedBatchId);
+                    if (selectedBatchId) {
+                        const courses = await fetchBatchBasedSelectedCourses(selectedBatchId);
+                        setBatchBasedSelectedCourse(courses);
+                    }
                 } catch (error) {
                     console.error(error);
                     message.error('退选失败');
@@ -105,12 +128,12 @@ const SelectedCourses = () => {
                     ))}
                 </Select>
             </div>
-            {selectedCourses.length === 0 ? (
+            {BatchBasedSelectedCourse.length === 0 ? (
                 <p>您当前没有选中的课程。</p>
             ) : (
                 <List
                     grid={{ gutter: 16, column: 1 }}
-                    dataSource={selectedCourses}
+                    dataSource={BatchBasedSelectedCourse}
                     renderItem={course => (
                         <List.Item key={course.id}>
                             <Card
