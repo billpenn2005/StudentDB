@@ -165,7 +165,7 @@ class StudentResource(resources.ModelResource):
     gender = fields.Field(
         column_name='gender',
         attribute='gender',
-        widget=widgets.IntegerWidget( )
+        widget=widgets.CharWidget( )
     )
 
     class Meta:
@@ -179,18 +179,7 @@ class StudentResource(resources.ModelResource):
         skip_unchanged = False
         report_skipped = True
 
-    def after_import_instance(self, instance, new, row, **kwargs):
-            # 调用父类方法
-            super().after_import_instance(instance, new, row, **kwargs)
-            from django.contrib.auth.models import Group
-            try:
-                # 获取名为 "Student" 的组，让用户加入
-                student_group = Group.objects.get(name='Student')
-                instance.user.groups.add(student_group)
-                instance.user.save()  # 确保保存用户
-                logger.debug(f"User '{instance.user.username}' added to group 'Student'.")
-            except Group.DoesNotExist:
-                logger.error("Group 'Student' does not exist. Please create it first.")
+
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
