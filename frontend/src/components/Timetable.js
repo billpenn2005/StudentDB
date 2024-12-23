@@ -54,9 +54,9 @@ const Timetable = () => {
       let endpoint = '';
 
       if (userGroups.includes('teacher')) {
-        endpoint = `/course-instances/?teacher=${user.teacher_id}`;
+        endpoint = `/course-instances/?teacher=${user.teacher_id}&semester=${currentSemester}`;
       } else if (userGroups.includes('student')) {
-        endpoint = '/course-instances/list_selected_courses/';
+        endpoint = `/course-instances/?teacher=${user.student_id}&semester=${currentSemester}`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
