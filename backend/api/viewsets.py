@@ -44,7 +44,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
     serializer_class = CourseInstanceSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['teacher', 'student', 'current_semester']  # 允许通过teacher字段过滤
+    filterset_fields = ['teacher', 'student', 'semester']  # 允许通过teacher字段过滤
     #current_semester = Semester.objects.get(is_current=True)
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])

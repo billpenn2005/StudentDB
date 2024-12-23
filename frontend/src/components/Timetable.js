@@ -57,13 +57,13 @@ const Timetable = () => {
         semester: currentSemester
       });
       const params1 = new URLSearchParams({
-        teacher: user.student_id,
+        student: user.student_id,
         semester: currentSemester
       });
       if (userGroups.includes('teacher')) {
-        endpoint = `/course-instances/?${params.toString()}`;
+        endpoint = `/course-instances/?teacher=${teacher_id}&semester=${currentSemester.name}`;
       } else if (userGroups.includes('student')) {
-        endpoint = `/course-instances/?${params1.toString()}`;
+        endpoint = `/course-instances/?student=${student_id}&semester=${currentSemester.name}`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
