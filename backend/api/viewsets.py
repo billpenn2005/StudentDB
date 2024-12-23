@@ -391,7 +391,7 @@ class SelectionBatchViewSet(viewsets.ModelViewSet):
     """
     queryset = SelectionBatch.objects.all()
     serializer_class = SelectionBatchSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def course_instances(self, request, pk=None):
@@ -687,7 +687,7 @@ class PunishmentRecordViewSet(viewsets.ModelViewSet):
     queryset = PunishmentRecord.objects.all()
     serializer_class = PunishmentRecordSerializer
     # 改为允许管理员或教师
-    permission_classes = [IsAuthenticated, IsAdminOrTeacher]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -700,7 +700,6 @@ class PunishmentRecordViewSet(viewsets.ModelViewSet):
         if user.is_staff:
             return PunishmentRecord.objects.all()
         elif user.groups.filter(name='Teacher').exists():
-            # 示例：只查看同部门学生的奖惩
             return PunishmentRecord.objects.filter(
                 student__department__in=user.teacher_profile.departments.all()
             )

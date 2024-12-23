@@ -137,3 +137,18 @@ SIMPLE_JWT = {
 # AUTH_USER_MODEL = 'api.CustomUser'
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'backend.api.admin': {  # 使用你的模块路径
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}

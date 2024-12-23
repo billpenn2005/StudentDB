@@ -14,6 +14,8 @@ from .models import (
 )
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
+import logging
+logger = logging.getLogger(__name__)
 
 # ============ 1. 定义 Resource 类（批量导入导出） ============
 
@@ -160,6 +162,11 @@ class StudentResource(resources.ModelResource):
         attribute='password',
         widget=widgets.CharWidget()
     )
+    gender = fields.Field(
+        column_name='gender',
+        attribute='gender',
+        widget=widgets.CharWidget( )
+    )
 
     class Meta:
         model = Student
@@ -169,20 +176,36 @@ class StudentResource(resources.ModelResource):
             'department', 'student_class', 'grade',
             'email', 'first_name', 'last_name', 'password'
         )
-        skip_unchanged = True
+        skip_unchanged = False
         report_skipped = True
-        
+
     def after_import_instance(self, instance, new, row, **kwargs):
-        # 调用父类方法（若需要）
-        super().after_import_instance(instance, new, row, **kwargs)
-        from django.contrib.auth.models import Group
+            # 调用父类方法
+            super().after_import_instance(instance, new, row, **kwargs)
+            from django.contrib.auth.models import Group
+            try:
+                # 获取名为 "Student" 的组，让用户加入
+                student_group = Group.objects.get(name='Student')
+                instance.user.groups.add(student_group)
+                instance.user.save()  # 确保保存用户
+                logger.debug(f"User '{instance.user.username}' added to group 'Student'.")
+            except Group.DoesNotExist:
+                logger.error("Group 'Student' does not exist. Please create it first.")
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth.models import Group
+
+@receiver(post_save, sender=Student)
+def add_user_to_student_group(sender, instance, created, **kwargs):
+    if created:
         try:
-            # 获取名为 "Student" 的组，让用户加入
             student_group = Group.objects.get(name='Student')
             instance.user.groups.add(student_group)
+            instance.user.save()
+            logger.debug(f"用户 '{instance.user.username}' 通过信号加入 'Student' 组。")
         except Group.DoesNotExist:
-            pass
-
+            logger.error("组 'Student' 不存在，请先创建。")
 
 class CoursePrototypeResource(resources.ModelResource):
     department = fields.Field(

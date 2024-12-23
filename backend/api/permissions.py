@@ -57,4 +57,4 @@ class IsOwnerStudent(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        return obj.student == request.user
+        return obj.student.user == request.user
