@@ -44,6 +44,7 @@ const SelectedCourses = () => {
             }
             setLoading(true);
             await fetchSelectedCourses(selectedBatchId);
+            console.log('Selected Courses:', selectedCourses);
             setLoading(false);
         };
         loadSelectedCourses();

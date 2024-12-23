@@ -45,6 +45,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['teacher']  # 允许通过teacher字段过滤
+    #current_semester = Semester.objects.get(is_current=True)
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def schedules_by_week(self, request, pk=None):
@@ -199,6 +200,13 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         except CourseInstance.DoesNotExist:
             return Response({'detail': '课程实例不存在'}, status=status.HTTP_404_NOT_FOUND)
         
+        try:
+            current_semester = Semester.objects.get(is_current=True)
+        except Semester.DoesNotExist:
+            return Response({'detail': '当前学期未设置'}, status=status.HTTP_400_BAD_REQUEST)
+        except Semester.MultipleObjectsReturned:
+            return Response({'detail': '存在多个当前学期，请检查数据'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         # 检查选课时间是否已过
         if timezone.now() > course_instance.selection_deadline or course_instance.is_finalized:
             return Response({'detail': '选课时间已截止'}, status=status.HTTP_400_BAD_REQUEST)
@@ -225,7 +233,7 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
                 is_finalized=False,
                 schedules__day=schedule.day,
                 schedules__period=schedule.period,
-                semester=current_semester  # 添加学期过滤
+                semester = current_semester  # 添加学期过滤
             ).exists()
             if conflict:
                 return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
@@ -396,31 +404,50 @@ class SelectionBatchViewSet(viewsets.ModelViewSet):
     serializer_class = SelectionBatchSerializer
     permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
-    def course_instances(self, request, pk=None):
-        """
-        获取特定选课批次的课程实例
-        """
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
+    def current_selected_courses(self, request):
         try:
-            selection_batch = SelectionBatch.objects.get(pk=pk)
-        except SelectionBatch.DoesNotExist:
-            return Response({'detail': '选课批次不存在'}, status=status.HTTP_404_NOT_FOUND)
+            selection_batch = SelectionBatch.objects.filter(
+                start_selection_date__lte=timezone.now(),
+                end_selection_date__gte=timezone.now()
+            ).first()
+            if not selection_batch:
+                return Response({'detail': '当前没有选课批次'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'发生错误: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        user = request.user
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        selected_courses = selection_batch.course_instances.filter(selected_students=user)
+        selected_serializer = CourseInstanceSerializer(selected_courses, many=True)
+        
+        return Response({
+            'selected_courses': selected_serializer.data
+        }, status=status.HTTP_200_OK)
 
-        course_instances = selection_batch.course_instances.all()
-        serializer = CourseInstanceSerializer(course_instances, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
     def selected_courses(self, request, pk=None):
-        """
-        获取给定学生在此批次中的已选课程
-        """
         try:
-            selection_batch = SelectionBatch.objects.get(pk=pk)
+            if pk.lower() == 'current':
+                # 假设当前批次是开始和结束日期包围当前时间的批次
+                selection_batch = SelectionBatch.objects.filter(
+                    start_selection_date__lte=timezone.now(),
+                    end_selection_date__gte=timezone.now()
+                ).first()
+                if not selection_batch:
+                    return Response({'detail': '当前没有选课批次'}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                selection_batch = SelectionBatch.objects.get(pk=pk)
         except SelectionBatch.DoesNotExist:
             return Response({'detail': '选课批次不存在'}, status=status.HTTP_404_NOT_FOUND)
-        
+        except Exception as e:
+            # 捕获其他可能的异常
+            return Response({'detail': f'发生错误: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         user = request.user
         try:
             student = Student.objects.get(user=user)

@@ -102,7 +102,7 @@ const StudentProfile = () => {
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item label="姓名">
-                                <Text strong>{`${studentData.first_name} ${studentData.last_name}`}</Text>
+                                <Text strong>{`${studentData.user.first_name} ${studentData.user.last_name}`}</Text>
                             </Form.Item>
                         </Col>
                         <Col span={12}>

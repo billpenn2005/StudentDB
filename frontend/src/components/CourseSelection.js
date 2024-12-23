@@ -1,6 +1,6 @@
 // src/components/CourseSelection.js
 
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo, useCallback } from 'react';
 import {
     List,
     Card,
@@ -33,7 +33,7 @@ const CourseSelection = () => {
 
     const [selectionBatches, setSelectionBatches] = useState([]);
     const [selectedBatchId, setSelectedBatchId] = useState(null);
-    const [courses, setCourses] = useState([]); // 可选课程
+    const [courses, setCourses] = useState([]); // Available courses
     const [loading, setLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -41,50 +41,72 @@ const CourseSelection = () => {
     const [courseDetails, setCourseDetails] = useState(null);
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [timetableData, setTimetableData] = useState([]);
-    const [selectedWeek, setSelectedWeek] = useState(1); // 存储选择的周数
-    const [totalWeeks, setTotalWeeks] = useState(16); // 假设一个学期有16周，可以根据实际情况调整
+    const [selectedWeek, setSelectedWeek] = useState(1); // Selected week number
+    const [totalWeeks, setTotalWeeks] = useState(16); // Assuming a 16-week semester
 
-    // 定义课表的天数和节数
+    // Define timetable days and periods
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const periods = [1, 2, 3, 4, 5]; // 根据模型修改为5节
+    const periods = [1, 2, 3, 4, 5]; // Adjust based on your schedule
 
-    useEffect(() => {
-        fetchSelectionBatches();
-        fetchCurrentSemester(); // 确保获取当前学期
-    }, []);
+    /**
+     * Calculate the current week number based on the semester start date.
+     * @param {Date} currentDate - The current date.
+     * @param {Date} startDate - The semester start date.
+     * @returns {number} - The current week number.
+     */
+    const getWeekNumber = (currentDate, startDate) => {
+        const oneWeek = 1000 * 60 * 60 * 24 * 7;
+        const diffInTime = currentDate.getTime() - startDate.getTime();
+        const diffInWeeks = Math.floor(diffInTime / oneWeek) + 1; // +1 because the first week is 1
+        return diffInWeeks;
+    };
 
-    useEffect(() => {
-        if (selectedBatchId) {
-            fetchSelectedCourses(selectedBatchId); // 获取已选课程
-            fetchAvailableCourses(selectedBatchId); // 获取可选课程
-        } else {
-            setCourses([]);
-            setLoading(false);
+    /**
+     * Determine if a course is scheduled in a particular week.
+     * @param {Object} schedule - The schedule object.
+     * @param {number} week - The selected week number.
+     * @returns {boolean} - True if scheduled, else false.
+     */
+    const isCourseScheduledInWeek = (schedule, week) => {
+        const { frequency, exceptions, start_week, end_week } = schedule;
+
+        // Exclude if the week is in exceptions
+        if (exceptions && exceptions.includes(week)) {
+            return false;
         }
-    }, [selectedBatchId]);
 
-    useEffect(() => {
-        console.log('selectedCourses changed:', selectedCourses);
-        if (!authLoading) {
-            generateTimetable();
+        // Ensure the week is within start and end weeks
+        if (typeof start_week === 'number' && typeof end_week === 'number') {
+            if (week < start_week || week > end_week) {
+                return false;
+            }
         }
-    }, [selectedCourses, authLoading, selectedWeek, currentSemester]); // 添加 currentSemester 依赖
 
-    // 获取选课批次列表
-    const fetchSelectionBatches = async () => {
+        // Check frequency
+        if (frequency > 0 && week % frequency === 0) {
+            return true;
+        }
+
+        return false; // Default to not scheduled
+    };
+
+    /**
+     * Fetch selection batches from the API.
+     */
+    const fetchSelectionBatches = useCallback(async () => {
         try {
             const response = await axiosInstance.get('selection-batches/');
-            const batches = response.data.results || response.data; // 处理分页数据
+            const batches = response.data.results || response.data; // Handle pagination
             setSelectionBatches(batches);
 
-            // 自动选择当前有效的批次（基于当前时间）
+            // Auto-select the current active batch based on dates
             const now = new Date();
             const currentBatch = batches.find(batch =>
                 new Date(batch.start_selection_date) <= now && now <= new Date(batch.end_selection_date)
             );
             if (currentBatch) {
                 setSelectedBatchId(currentBatch.id);
-                // 计算当前周数
+                // Calculate the current week number
                 if (currentSemester) {
                     const semesterStart = new Date(currentSemester.start_date);
                     const weekNumber = getWeekNumber(now, semesterStart);
@@ -97,12 +119,16 @@ const CourseSelection = () => {
         } catch (error) {
             console.error('Fetch Selection Batches Error:', error);
             message.error('获取选课批次失败');
+        } finally {
+            setLoading(false);
         }
-    };
+    }, [currentSemester, totalWeeks]);
 
-    // 获取可选课程列表，根据选中的批次
-    // 修改为调用新的 available_courses API
-    const fetchAvailableCourses = async (batchId) => {
+    /**
+     * Fetch available courses based on the selected batch.
+     * @param {number} batchId - The selected batch ID.
+     */
+    const fetchAvailableCourses = useCallback(async (batchId) => {
         setLoading(true);
         try {
             const response = await axiosInstance.get(`selection-batches/${batchId}/available_courses/`);
@@ -113,9 +139,12 @@ const CourseSelection = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    // 查看课程详情
+    /**
+     * View course details by fetching them from the API.
+     * @param {Object} course - The course object.
+     */
     const handleViewDetails = async (course) => {
         setSelectedCourse(course);
         setModalVisible(true);
@@ -133,24 +162,25 @@ const CourseSelection = () => {
         }
     };
 
-    // 选课功能
-    const handleEnroll = async () => {
-        if (!selectedCourse) return;
+    /**
+     * Enroll in a specific course.
+     * @param {Object} course - The course object to enroll in.
+     */
+    const handleEnroll = async (course) => {
+        if (!course) return;
 
         setSubmitting(true);
         try {
-            const response = await axiosInstance.post(`course-instances/${selectedCourse.id}/enroll/`);
+            const response = await axiosInstance.post(`course-instances/${course.id}/enroll/`);
             console.log('Enroll Response:', response.data); // Debug log
             message.success(response.data.detail || '选课成功');
             setModalVisible(false);
-            await fetchUser(); // 重新获取用户信息，更新已选课程
-            await fetchSelectedCourses(selectedBatchId); // 重新获取已选课程
-            await fetchAvailableCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
-            // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
+            await fetchUser(); // Re-fetch user info
+            await fetchSelectedCourses(selectedBatchId); // Re-fetch selected courses
+            await fetchAvailableCourses(selectedBatchId); // Update available courses
         } catch (error) {
             console.error('Enroll Error:', error);
             if (error.response && error.response.data) {
-                // 处理多种错误信息
                 const errors = Object.values(error.response.data).flat();
                 message.error(errors.join(', ') || '选课失败');
             } else {
@@ -161,22 +191,24 @@ const CourseSelection = () => {
         }
     };
 
-    // 退选功能
-    const handleUnenroll = async (course) => { // 接受一个 course 参数
+    /**
+     * Unenroll from a specific course.
+     * @param {Object} course - The course object to unenroll from.
+     */
+    const handleUnenroll = async (course) => {
         if (!course) return;
 
         setSubmitting(true);
         try {
-            const response = await axiosInstance.post(`course-instances/${course.id}/drop/`); // 确保端点正确
+            const response = await axiosInstance.post(`course-instances/${course.id}/drop/`);
             console.log('Unenroll Response:', response.data); // Debug log
             message.success(response.data.detail || '退选成功');
-            await fetchUser(); // 重新获取用户信息，更新已选课程
-            await fetchSelectedCourses(selectedBatchId); // 重新获取已选课程
-            await fetchAvailableCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
+            await fetchUser(); // Re-fetch user info
+            await fetchSelectedCourses(selectedBatchId); // Re-fetch selected courses
+            await fetchAvailableCourses(selectedBatchId); // Update available courses
         } catch (error) {
             console.error('Unenroll Error:', error);
             if (error.response && error.response.data) {
-                // 处理多种错误信息
                 const errors = Object.values(error.response.data).flat();
                 message.error(errors.join(', ') || '退选失败');
             } else {
@@ -187,58 +219,16 @@ const CourseSelection = () => {
         }
     };
 
-    // 获取已选课程的时间槽ID，用于冲突检测
-    const selectedTimeSlots = Array.isArray(selectedCourses)
-        ? selectedCourses.flatMap(sc => Array.isArray(sc.schedules) ? sc.schedules.map(schedule => ({
-            day: schedule.day,
-            period: schedule.period,
-            frequency: schedule.frequency,
-            exceptions: schedule.exceptions || [],
-            start_week: schedule.start_week,
-            end_week: schedule.end_week,
-        })) : [])
-        : [];
-
-    console.log('Selected Time Slots:', selectedTimeSlots); // Debug log
-
-    // 计算已选课程的总学分
-    const totalCredits = Array.isArray(selectedCourses)
-        ? selectedCourses.reduce((sum, course) => sum + (course.course_prototype.credits || 0), 0)
-        : 0;
-
-    // 判断课程是否在选定的周数安排
-    const isCourseScheduledInWeek = (schedule, week) => {
-        const { frequency, exceptions, start_week, end_week } = schedule;
-
-        // 检查是否在例外周
-        if (exceptions && exceptions.includes(week)) {
-            return false;
-        }
-
-        // 检查是否在开始和结束周之间
-        if (typeof start_week === 'number' && typeof end_week === 'number') {
-            if (week < start_week || week > end_week) {
-                return false;
-            }
-        }
-
-        // 根据频率判断
-        if((week) % frequency === 0) {
-            return true;
-        }
-    };
-
-    // 生成课表数据
-    const generateTimetable = () => {
-        console.log('Generating Timetable with Selected Courses:', selectedCourses); // Debug log
-        console.log('Selected Week Number:', selectedWeek);
+    /**
+     * Generate the timetable based on selected courses and week.
+     */
+    const generateTimetable = useCallback(() => {
         if (!Array.isArray(selectedCourses) || !currentSemester) {
             setTimetableData([]);
             return;
         }
-
-        const selectedWeekNumber = selectedWeek; // 使用选择的周数
-
+    
+        const selectedWeekNumber = selectedWeek;
         const data = periods.map(period => {
             const row = { key: period, period: `${period}节` };
             days.forEach(day => {
@@ -250,25 +240,91 @@ const CourseSelection = () => {
                         isCourseScheduledInWeek(schedule, selectedWeekNumber)
                     )
                 );
-                if (course) {
-                    row[day] = {
-                        id: course.id, // 确保包含课程ID
-                        name: course.course_prototype.name,
-                        group: course.group,
-                        teacher: course.teacher?.user?.first_name ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知', // 使用可选链并提供默认值
-                        week: selectedWeekNumber, // 使用选中的周数
-                    };
-                } else {
-                    row[day] = null;
-                }
+                row[day] = course ? {
+                    id: course.id,
+                    name: course.course_prototype.name,
+                    group: course.group,
+                    teacher: course.teacher?.user?.first_name ? 
+                        `${course.teacher.user.first_name} ${course.teacher.user.last_name}` : '未知',
+                    week: selectedWeekNumber,
+                } : null;
             });
             return row;
         });
         setTimetableData(data);
-        console.log('Timetable Data:', data); // Debug log
+    }, [selectedCourses, selectedWeek, periods, days, currentSemester]);
+    
+
+    /**
+     * Generate options for the week selector.
+     * @returns {Array} - Array of Option components.
+     */
+    const generateWeekOptions = () => {
+        const options = [];
+        for (let i = 1; i <= totalWeeks; i++) {
+            options.push(
+                <Option key={i} value={i}>
+                    第 {i} 周
+                </Option>
+            );
+        }
+        return options;
     };
 
-    // 定义课表的列
+    // Fetch selection batches on component mount
+    useEffect(() => {
+        if (currentSemester) {
+            fetchSelectionBatches();
+        }
+    }, [currentSemester]); // 只依赖currentSemester
+
+    useEffect(() => {
+        if (selectedBatchId) {
+            Promise.all([
+                fetchAvailableCourses(selectedBatchId),
+            ]).finally(() => {
+                setLoading(false);
+            });
+        } else {
+            setCourses([]);
+            setLoading(false);
+        }
+    }, [selectedBatchId, fetchAvailableCourses]); // 移除fetchSelectedCourses依赖
+
+    // Generate timetable whenever selected courses, week, or semester changes
+    useEffect(() => {
+        if (!authLoading && currentSemester && selectedCourses.length > 0) {
+            generateTimetable();
+        }
+    }, [authLoading, currentSemester, selectedWeek]); // 简化依赖
+    // Compute selected time slots using useMemo for performance
+    const selectedTimeSlots = useMemo(() => (
+        Array.isArray(selectedCourses)
+            ? selectedCourses.flatMap(sc => 
+                Array.isArray(sc.schedules) 
+                    ? sc.schedules.map(schedule => ({
+                        day: schedule.day,
+                        period: schedule.period,
+                        frequency: schedule.frequency,
+                        exceptions: schedule.exceptions || [],
+                        start_week: schedule.start_week,
+                        end_week: schedule.end_week,
+                    })) 
+                    : []
+            )
+            : []
+    ), [selectedCourses]);
+
+    //console.log('Selected Time Slots:', selectedTimeSlots); // Debug log
+
+    // Calculate total credits
+    const totalCredits = useMemo(() => {
+        return Array.isArray(selectedCourses)
+            ? selectedCourses.reduce((sum, course) => sum + (course.course_prototype.credits || 0), 0)
+            : 0;
+    }, [selectedCourses]);
+
+    // Define timetable columns
     const timetableColumns = [
         {
             title: '节数',
@@ -289,43 +345,28 @@ const CourseSelection = () => {
                     <div onClick={() => handleViewDetails(courseData)} style={{ cursor: 'pointer' }}>
                         <strong>{courseData.name}</strong>
                         <div>班级: {courseData.group}</div>
-                        <div>教师: {courseData.teacher}</div> {/* 确保 teacher 是字符串 */}
-                        <div>周数: 第{courseData.week}周</div> {/* 显示周数信息 */}
+                        <div>教师: {courseData.teacher}</div>
+                        <div>周数: 第{courseData.week}周</div>
                     </div>
                 ) : null
             )
         }))
     ];
 
-    // 处理批次选择变化
+    /**
+     * Handle changes in batch selection.
+     * @param {number} value - The selected batch ID.
+     */
     const handleBatchChange = (value) => {
         setSelectedBatchId(value);
     };
 
-    // 处理周数选择变化
+    /**
+     * Handle changes in week selection.
+     * @param {number} value - The selected week number.
+     */
     const handleWeekChange = (value) => {
         setSelectedWeek(value);
-    };
-
-    // 计算当前周数
-    const getWeekNumber = (currentDate, startDate) => {
-        const oneWeek = 1000 * 60 * 60 * 24 * 7;
-        const diffInTime = currentDate.getTime() - startDate.getTime();
-        const diffInWeeks = Math.floor(diffInTime / oneWeek) + 1; // +1 因为第一周是1
-        return diffInWeeks;
-    };
-
-    // 生成可选周数列表
-    const generateWeekOptions = () => {
-        const options = [];
-        for (let i = 1; i <= totalWeeks; i++) {
-            options.push(
-                <Option key={i} value={i}>
-                    第 {i} 周
-                </Option>
-            );
-        }
-        return options;
     };
 
     if (loading || authLoading || !currentSemester) {
@@ -340,11 +381,11 @@ const CourseSelection = () => {
         <div style={{ padding: '20px' }}>
             <h2>选课系统</h2>
             
-            {/* 选课批次选择和周数选择 */}
-            <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+            {/* Selection Batches and Week Selector */}
+            <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ marginRight: '10px' }}>选择选课批次:</span>
                 <Select
-                    style={{ width: 300, marginRight: '20px' }}
+                    style={{ width: 300, marginRight: '20px', minWidth: '200px' }}
                     placeholder="请选择选课批次"
                     value={selectedBatchId}
                     onChange={handleBatchChange}
@@ -356,10 +397,10 @@ const CourseSelection = () => {
                     ))}
                 </Select>
 
-                {/* 添加周选择器 */}
+                {/* Week Selector */}
                 <span style={{ marginRight: '10px' }}>选择周数:</span>
                 <Select
-                    style={{ width: 150 }}
+                    style={{ width: 150, minWidth: '100px' }}
                     placeholder="请选择周数"
                     value={selectedWeek}
                     onChange={handleWeekChange}
@@ -369,7 +410,7 @@ const CourseSelection = () => {
             </div>
 
             <Row gutter={[16, 16]}>
-                {/* 课表部分 */}
+                {/* Timetable Section */}
                 <Col xs={24} md={16}>
                     <h3>课表 - 第 {selectedWeek} 周</h3>
                     <Table
@@ -382,7 +423,7 @@ const CourseSelection = () => {
                         onRow={(record, rowIndex) => {
                             return {
                                 onClick: (event) => {
-                                    // 点击行时，如果有课程，则显示详情
+                                    // Click row to view course details if a course exists
                                     const clickedCourse = days.reduce((acc, day) => acc || record[day], null);
                                     if (clickedCourse) {
                                         handleViewDetails(clickedCourse);
@@ -396,7 +437,7 @@ const CourseSelection = () => {
                     </div>
                 </Col>
 
-                {/* 可选课程部分 */}
+                {/* Available Courses Section */}
                 <Col xs={24} md={8}>
                     <h3>可选课程</h3>
                     <List
@@ -416,7 +457,7 @@ const CourseSelection = () => {
                                         {course.teacher?.user?.first_name && course.teacher?.user?.last_name
                                             ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}`
                                             : '未知'}
-                                    </p> {/* 使用可选链并提供默认值 */}
+                                    </p>
                                     <p><strong>班级：</strong> {course.group}</p>
                                     <Button
                                         type="primary"
@@ -426,12 +467,11 @@ const CourseSelection = () => {
                                     >
                                         查看详情
                                     </Button>
-                                    {/* 添加禁用选课按钮逻辑 */}
                                     <Button
                                         type="primary"
-                                        onClick={() => handleEnroll()}
+                                        onClick={() => handleEnroll(course)} // Pass the specific course
                                         size="small"
-                                        disabled={course.is_finalized} // 禁用条件
+                                        disabled={course.is_finalized} // Disable if enrollment is finalized
                                     >
                                         选课
                                     </Button>
@@ -445,7 +485,7 @@ const CourseSelection = () => {
                 </Col>
             </Row>
 
-            {/* 已选课程部分 */}
+            {/* Selected Courses Section */}
             <Row gutter={[16, 16]} style={{ marginTop: '40px' }}>
                 <Col xs={24}>
                     <h3>已选课程</h3>
@@ -468,7 +508,7 @@ const CourseSelection = () => {
                                             {course.teacher?.user?.first_name && course.teacher?.user?.last_name
                                                 ? `${course.teacher.user.first_name} ${course.teacher.user.last_name}`
                                                 : '未知'}
-                                        </p> {/* 使用可选链并提供默认值 */}
+                                        </p>
                                         <p><strong>班级：</strong> {course.group}</p>
                                         <p><strong>选课批次：</strong> {course.selection_batch ? course.selection_batch.name : '未分配'}</p>
                                         <Button
@@ -476,7 +516,7 @@ const CourseSelection = () => {
                                             onClick={() => handleUnenroll(course)}
                                             loading={submitting}
                                             size="small"
-                                            disabled={course.is_finalized} // 禁用退选按钮
+                                            disabled={course.is_finalized} // Disable if unenrollment is finalized
                                         >
                                             退选
                                         </Button>
@@ -491,7 +531,7 @@ const CourseSelection = () => {
                 </Col>
             </Row>
 
-            {/* 课程详情模态框 */}
+            {/* Course Details Modal */}
             <Modal
                 title={courseDetails ? `课程详情 - ${courseDetails.course_prototype.name}` : '课程详情'}
                 visible={modalVisible}
@@ -500,14 +540,14 @@ const CourseSelection = () => {
                     <Button key="cancel" onClick={() => setModalVisible(false)} size="small">
                         取消
                     </Button>,
-                    selectedCourses && selectedCourses.find(sc => sc.id === selectedCourse?.id) ? (
+                    selectedCourse && selectedCourses.find(sc => sc.id === selectedCourse.id) ? (
                         <Button
                             key="unenroll"
                             type="danger"
                             onClick={() => handleUnenroll(selectedCourse)}
                             loading={submitting}
                             size="small"
-                            disabled={courseDetails?.is_finalized} // 禁用退选按钮
+                            disabled={courseDetails?.is_finalized} // Disable if unenrollment is finalized
                         >
                             退选
                         </Button>
@@ -515,9 +555,9 @@ const CourseSelection = () => {
                         <Button
                             key="enroll"
                             type="primary"
-                            onClick={() => handleEnroll()}
+                            onClick={() => handleEnroll(selectedCourse)}
                             disabled={
-                                // 检查是否有时间冲突或课程已满或选课截止日期已过或课程已最终化
+                                // Check for time conflicts, capacity, deadlines, or finalization
                                 courseDetails?.schedules?.some(cls =>
                                     (
                                         isCourseScheduledInWeek(cls, selectedWeek)
@@ -526,7 +566,7 @@ const CourseSelection = () => {
                                 ) ||
                                 courseDetails?.selected_students.length >= courseDetails?.capacity ||
                                 new Date(courseDetails?.selection_deadline) < new Date() ||
-                                courseDetails?.is_finalized // 添加最终化检查
+                                courseDetails?.is_finalized // Check finalization
                             }
                             loading={submitting}
                             size="small"
@@ -548,7 +588,7 @@ const CourseSelection = () => {
                             {courseDetails.teacher?.user?.first_name && courseDetails.teacher?.user?.last_name
                                 ? `${courseDetails.teacher.user.first_name} ${courseDetails.teacher.user.last_name}`
                                 : '未知'}
-                        </p> {/* 使用可选链并提供默认值 */}
+                        </p>
                         <h4>上课时间</h4>
                         <List
                             dataSource={courseDetails.schedules || []}
@@ -561,7 +601,6 @@ const CourseSelection = () => {
                                 const isFull = courseDetails.selected_students.length >= courseDetails.capacity;
                                 const remaining = courseDetails.capacity - courseDetails.selected_students.length;
 
-                                console.log(`Schedule: ${schedule.day} 第${schedule.period}节, Conflict: ${isConflict}, Full: ${isFull}`); // Debug log
 
                                 return (
                                     <List.Item key={`${schedule.day}-${schedule.period}`}>
@@ -576,7 +615,7 @@ const CourseSelection = () => {
                                                 {courseDetails.teacher?.user?.first_name && courseDetails.teacher?.user?.last_name
                                                     ? `${courseDetails.teacher.user.first_name} ${courseDetails.teacher.user.last_name}`
                                                     : '未知'}
-                                            </p> {/* 使用可选链并提供默认值 */}
+                                            </p>
                                             <p><strong>容量：</strong>{courseDetails.selected_students.length} / {courseDetails.capacity} ({remaining}剩余)</p>
                                             <Progress
                                                 percent={Math.round((courseDetails.selected_students.length / courseDetails.capacity) * 100)}
@@ -586,7 +625,6 @@ const CourseSelection = () => {
                                             />
                                             {isFull && <Badge status="error" text="该班级已满" />}
                                             {isConflict && <Badge status="warning" text="时间冲突" />}
-                                            {/* 移除每个时间段的选课按钮 */}
                                         </Card>
                                     </List.Item>
                                 );

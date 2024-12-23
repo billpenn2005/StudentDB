@@ -14,15 +14,14 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const hasNavigated = useRef(false);
+    const initializeRef = useRef(false);
+    const dataFetchedRef = useRef(false);
 
     const fetchUser = useCallback(async () => {
         try {
             const response = await axiosInstance.get('user/current/');
-            if (JSON.stringify(response.data) !== JSON.stringify(user)) {
-                setUser(response.data);
-            }
+            setUser(response.data);
             setIsAuthenticated(true);
-            console.log('Fetched User:', response.data);
             return response.data;
         } catch (err) {
             console.error('Failed to fetch user:', err);
@@ -33,63 +32,55 @@ export const AuthProvider = ({ children }) => {
             toast.error('用户信息获取失败，请重新登录');
             return null;
         }
-    }, [user]);
+    }, []);
 
-    const fetchSelectedCourses = useCallback(async () => {
-        if (!user || !user.student) {
-            console.warn('User or student information is missing.');
-            setSelectedCourses([]);
-            return;
-        }
-
+    const fetchSelectedCourses = useCallback(async () => {        
         try {
             const response = await axiosInstance.get('selection-batches/current/selected_courses/');
+            console.log('Selected Courses:', response.data.selected_courses);
             setSelectedCourses(response.data.selected_courses || []);
-            console.log('Fetched Selected Courses:', response.data.selected_courses);
         } catch (error) {
             console.error('Failed to fetch selected courses:', error);
             setSelectedCourses([]);
-            toast.error('获取已选课程失败');
         }
-    }, [user]);
+    }, [user?.student]);
 
     const fetchCurrentSemester = useCallback(async () => {
         try {
             const response = await axiosInstance.get('semesters/current/');
             setCurrentSemester(response.data);
-            console.log('Fetched Current Semester:', response.data);
         } catch (error) {
             console.error('Fetch Current Semester Error:', error);
-            toast.error('获取当前学期信息失败');
         }
     }, []);
 
+    // 主初始化函数
     useEffect(() => {
-        let isMounted = true;
+        if (!isAuthenticated || dataFetchedRef.current) return;
 
-        const initialize = async () => {
-            if (isAuthenticated && isMounted) {
+        const initializeData = async () => {
+            try {
+                setLoading(true);
                 const fetchedUser = await fetchUser();
-                if (fetchedUser && isMounted) {
-                    await fetchSelectedCourses();
-                    await fetchCurrentSemester();
+                if (fetchedUser) {
+                    await Promise.all([
+                        fetchSelectedCourses(),
+                        fetchCurrentSemester()
+                    ]);
                 }
+                dataFetchedRef.current = true;
+            } catch (error) {
+                console.error('初始化数据失败:', error);
+            } finally {
+                setLoading(false);
             }
-            if (isMounted) setLoading(false);
         };
-        initialize();
 
-        return () => {
-            isMounted = false;
-        };
+        initializeData();
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
 
-    useEffect(() => {
-        if (user) {
-            fetchSelectedCourses();
-            fetchCurrentSemester();
-        }
-    }, [user, fetchSelectedCourses, fetchCurrentSemester]);
+
+
 
     const login = async (accessToken, refreshToken) => {
         try {
@@ -118,18 +109,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        if (user && !hasNavigated.current) {
-            const userGroups = Array.isArray(user.groups) ? user.groups : [];
-            console.log('User Groups:', userGroups);
-
-            if (location.pathname === '/') {
-                if (userGroups.includes('Student')) {
-                    navigate('/student-dashboard');
-                } else if (userGroups.includes('Teacher')) {
-                    navigate('/teacher-dashboard');
-                }
-                hasNavigated.current = true;
+        if (user && !hasNavigated.current && location.pathname === '/') {
+            const userGroups = user.groups || [];
+            
+            if (userGroups.includes('Student')) {
+                navigate('/student-dashboard');
+            } else if (userGroups.includes('Teacher')) {
+                navigate('/teacher-dashboard');
             }
+            hasNavigated.current = true;
         }
     }, [user, navigate, location.pathname]);
 
