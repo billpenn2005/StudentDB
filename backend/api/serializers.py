@@ -246,15 +246,27 @@ class CourseInstanceCreateUpdateSerializer(serializers.ModelSerializer):
 
 class StudentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all())
-    student_class = serializers.PrimaryKeyRelatedField(queryset=Class.objects.all())
-    grade = serializers.PrimaryKeyRelatedField(queryset=Grade.objects.all())
+    department = DepartmentSerializer(read_only=True)  # 修改为嵌套序列化器
+    student_class = ClassSerializer(read_only=True)    # 修改为嵌套序列化器
+    grade = GradeSerializer(read_only=True)            # 修改为嵌套序列化器
+    
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(), write_only=True, source='department'
+    )
+    student_class_id = serializers.PrimaryKeyRelatedField(
+        queryset=Class.objects.all(), write_only=True, source='student_class'
+    )
+    grade_id = serializers.PrimaryKeyRelatedField(
+        queryset=Grade.objects.all(), write_only=True, source='grade'
+    )
     
     class Meta:
         model = Student
-        fields = ['id', 'user', 'department', 'student_class', 'grade', 'age', 'gender', 'id_number']
-        read_only_fields = ['department', 'student_class', 'grade', 'age', 'gender', 'id_number']  # 只允许更新邮箱
-
+        fields = [
+            'id', 'user', 'department', 'student_class', 'grade',
+            'age', 'gender', 'id_number',
+            'department_id', 'student_class_id', 'grade_id'
+        ]
 
 class S_GradeSerializer(serializers.ModelSerializer):
     student = serializers.StringRelatedField(read_only=True)
@@ -309,4 +321,11 @@ class S_GradeSerializer(serializers.ModelSerializer):
     def get_is_published(self, obj):
         return obj.course_instance.is_grades_published
 
+
+class UserWithStudentSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+    groups = serializers.StringRelatedField(many=True, read_only=True)
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'student', 'groups']
 # backend/api/serializers.py

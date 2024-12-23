@@ -19,6 +19,7 @@ const Home = () => {
         );
     }
 
+
     if (!isAuthenticated) {
         // 未认证时显示登录界面
         return <Login />;
@@ -37,6 +38,7 @@ const Home = () => {
             </div>
         );
     }
+    console.log(user);
 
     // 已认证且获取到用户数据时显示欢迎信息和跳转按钮
     return (
@@ -45,16 +47,18 @@ const Home = () => {
             <Paragraph>
                 您已经成功登录到学生管理系统。请选择您的仪表盘。
             </Paragraph>
-            {user.groups.some(group => group.name === 'student') && (
+            // ...existing code...
+            {user.groups.some(group => group === 'student') && (
                 <Button type="primary" href="/student-dashboard" style={{ marginRight: '10px' }}>
                     前往学生仪表盘
                 </Button>
             )}
-            {user.groups.some(group => group.name === 'teacher') && (
+            {user.groups.some(group => group === 'teacher') && (
                 <Button type="primary" href="/teacher-dashboard">
                     前往老师仪表盘
                 </Button>
             )}
+            // ...existing code...
         </div>
     );
 };

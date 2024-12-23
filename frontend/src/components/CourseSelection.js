@@ -33,7 +33,7 @@ const CourseSelection = () => {
 
     const [selectionBatches, setSelectionBatches] = useState([]);
     const [selectedBatchId, setSelectedBatchId] = useState(null);
-    const [courses, setCourses] = useState([]);
+    const [courses, setCourses] = useState([]); // 可选课程
     const [loading, setLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -55,7 +55,8 @@ const CourseSelection = () => {
 
     useEffect(() => {
         if (selectedBatchId) {
-            fetchCourses(selectedBatchId);
+            fetchSelectedCourses(selectedBatchId); // 获取已选课程
+            fetchAvailableCourses(selectedBatchId); // 获取可选课程
         } else {
             setCourses([]);
             setLoading(false);
@@ -100,22 +101,15 @@ const CourseSelection = () => {
     };
 
     // 获取可选课程列表，根据选中的批次
-    const fetchCourses = async (batchId) => {
+    // 修改为调用新的 available_courses API
+    const fetchAvailableCourses = async (batchId) => {
         setLoading(true);
         try {
-            const response = await axiosInstance.get(`selection-batches/${batchId}/course_instances/`);
-            console.log('Courses Response:', response.data); // Debug log
-            if (Array.isArray(response.data)) {
-                setCourses(response.data);
-            } else if (response.data.results && Array.isArray(response.data.results)) {
-                setCourses(response.data.results);
-            } else {
-                console.error('Unexpected courses data format:', response.data);
-                message.error('获取课程列表失败，数据格式错误');
-            }
+            const response = await axiosInstance.get(`selection-batches/${batchId}/available_courses/`);
+            setCourses(response.data.available_courses);
         } catch (error) {
-            console.error('Fetch Courses Error:', error);
-            message.error('获取课程列表失败');
+            console.error('Fetch Available Courses Error:', error);
+            message.error('获取可选课程失败');
         } finally {
             setLoading(false);
         }
@@ -150,8 +144,8 @@ const CourseSelection = () => {
             message.success(response.data.detail || '选课成功');
             setModalVisible(false);
             await fetchUser(); // 重新获取用户信息，更新已选课程
-            await fetchSelectedCourses(); // 重新获取已选课程
-            await fetchCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
+            await fetchSelectedCourses(selectedBatchId); // 重新获取已选课程
+            await fetchAvailableCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
             // 不需要手动调用 generateTimetable，因为 useEffect 已监听 selectedCourses
         } catch (error) {
             console.error('Enroll Error:', error);
@@ -177,8 +171,8 @@ const CourseSelection = () => {
             console.log('Unenroll Response:', response.data); // Debug log
             message.success(response.data.detail || '退选成功');
             await fetchUser(); // 重新获取用户信息，更新已选课程
-            await fetchSelectedCourses(); // 重新获取已选课程
-            await fetchCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
+            await fetchSelectedCourses(selectedBatchId); // 重新获取已选课程
+            await fetchAvailableCourses(selectedBatchId); // 更新可选课程列表，可能课程容量已变化
         } catch (error) {
             console.error('Unenroll Error:', error);
             if (error.response && error.response.data) {

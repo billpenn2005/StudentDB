@@ -1,5 +1,3 @@
-// src/contexts/AuthContext.js
-
 import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-toastify';
@@ -11,21 +9,23 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('access_token'));
     const [user, setUser] = useState(null);
     const [selectedCourses, setSelectedCourses] = useState([]);
-    const [currentSemester, setCurrentSemester] = useState(null); // 新增状态
+    const [currentSemester, setCurrentSemester] = useState(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-    const location = useLocation(); // 获取当前路径
-    const hasNavigated = useRef(false); // Ref to track navigation
+    const location = useLocation();
+    const hasNavigated = useRef(false);
 
     const fetchUser = useCallback(async () => {
         try {
             const response = await axiosInstance.get('user/current/');
-            setUser(response.data);
+            if (JSON.stringify(response.data) !== JSON.stringify(user)) {
+                setUser(response.data);
+            }
             setIsAuthenticated(true);
-            console.log('Fetched User:', response.data); // Debug log
+            console.log('Fetched User:', response.data);
             return response.data;
         } catch (err) {
-            console.error(err);
+            console.error('Failed to fetch user:', err);
             setIsAuthenticated(false);
             setUser(null);
             localStorage.removeItem('access_token');
@@ -33,46 +33,57 @@ export const AuthProvider = ({ children }) => {
             toast.error('用户信息获取失败，请重新登录');
             return null;
         }
-    }, []);
+    }, [user]);
 
     const fetchSelectedCourses = useCallback(async () => {
+        if (!user || !user.student) {
+            console.warn('User or student information is missing.');
+            setSelectedCourses([]);
+            return;
+        }
+
         try {
-            const response = await axiosInstance.get('course-instances/list_selected_courses/');
-            setSelectedCourses(response.data);
-            console.log('Fetched Selected Courses:', response.data); // Debug log
+            const response = await axiosInstance.get('selection-batches/current/selected_courses/');
+            setSelectedCourses(response.data.selected_courses || []);
+            console.log('Fetched Selected Courses:', response.data.selected_courses);
         } catch (error) {
             console.error('Failed to fetch selected courses:', error);
             setSelectedCourses([]);
+            toast.error('获取已选课程失败');
         }
-    }, []);
+    }, [user]);
 
     const fetchCurrentSemester = useCallback(async () => {
         try {
             const response = await axiosInstance.get('semesters/current/');
             setCurrentSemester(response.data);
-            console.log('Fetched Current Semester:', response.data); // Debug log
+            console.log('Fetched Current Semester:', response.data);
         } catch (error) {
             console.error('Fetch Current Semester Error:', error);
             toast.error('获取当前学期信息失败');
         }
     }, []);
 
-    // 初始化
     useEffect(() => {
+        let isMounted = true;
+
         const initialize = async () => {
-            if (isAuthenticated) {
+            if (isAuthenticated && isMounted) {
                 const fetchedUser = await fetchUser();
-                if (fetchedUser) {
+                if (fetchedUser && isMounted) {
                     await fetchSelectedCourses();
-                    await fetchCurrentSemester(); // 获取当前学期
+                    await fetchCurrentSemester();
                 }
             }
-            setLoading(false);
+            if (isMounted) setLoading(false);
         };
         initialize();
+
+        return () => {
+            isMounted = false;
+        };
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
 
-    // 监听用户变化，刷新已选课程和当前学期
     useEffect(() => {
         if (user) {
             fetchSelectedCourses();
@@ -81,13 +92,17 @@ export const AuthProvider = ({ children }) => {
     }, [user, fetchSelectedCourses, fetchCurrentSemester]);
 
     const login = async (accessToken, refreshToken) => {
-        localStorage.setItem('access_token', accessToken);
-        localStorage.setItem('refresh_token', refreshToken);
-        setIsAuthenticated(true);
-        const fetchedUser = await fetchUser();
-        if (fetchedUser) {
-            await fetchSelectedCourses();
-            await fetchCurrentSemester();
+        try {
+            localStorage.setItem('access_token', accessToken);
+            localStorage.setItem('refresh_token', refreshToken);
+            setIsAuthenticated(true);
+            const fetchedUser = await fetchUser();
+            if (fetchedUser) {
+                navigate('/dashboard');
+            }
+        } catch (error) {
+            console.error('登录失败:', error);
+            toast.error('登录失败，请检查用户名和密码');
         }
     };
 
@@ -96,26 +111,24 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
         setUser(null);
-        setSelectedCourses([]); // 清空已选课程
-        setCurrentSemester(null); // 清空当前学期
+        setSelectedCourses([]);
+        setCurrentSemester(null);
         toast.info('已注销');
-        navigate('/'); // 重定向到首页
+        navigate('/');
     };
 
-    // 监听用户数据变化以进行跳转
     useEffect(() => {
         if (user && !hasNavigated.current) {
-            const userGroups = user.groups;
-            console.log('User Groups:', userGroups); // Debug log
+            const userGroups = Array.isArray(user.groups) ? user.groups : [];
+            console.log('User Groups:', userGroups);
 
-            // 仅当用户当前在首页时，进行自动导航
             if (location.pathname === '/') {
                 if (userGroups.includes('Student')) {
                     navigate('/student-dashboard');
                 } else if (userGroups.includes('Teacher')) {
                     navigate('/teacher-dashboard');
                 }
-                hasNavigated.current = true; // Prevent future navigations
+                hasNavigated.current = true;
             }
         }
     }, [user, navigate, location.pathname]);
@@ -130,9 +143,9 @@ export const AuthProvider = ({ children }) => {
             setUser,
             selectedCourses,
             fetchSelectedCourses,
-            fetchUser, // 添加 fetchUser 到 context
-            currentSemester, // 提供当前学期信息
-            fetchCurrentSemester, // 添加 fetchCurrentSemester 到 context
+            fetchUser,
+            currentSemester,
+            fetchCurrentSemester,
         }}>
             {children}
         </AuthContext.Provider>

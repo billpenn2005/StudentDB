@@ -1,7 +1,16 @@
-import React, { Component, useContext } from 'react';
+// src/App.js
+
+import React, { useContext } from 'react';
 import { Route, Routes, Navigate, Link } from 'react-router-dom';
 import { Layout, Menu, Spin } from 'antd';
-import { UserOutlined, HomeOutlined, LogoutOutlined, ProfileOutlined, BookOutlined, CalendarOutlined } from '@ant-design/icons';
+import {
+    UserOutlined,
+    HomeOutlined,
+    LogoutOutlined,
+    ProfileOutlined,
+    BookOutlined,
+    CalendarOutlined
+} from '@ant-design/icons';
 
 import Home from './components/Home';
 import StudentDashboard from './components/StudentDashboard';
@@ -23,6 +32,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import ChangePassword from './components/ChangePassword';
 import PunishmentRecords from './components/PunishmentRecords';
 import MyPunishments from './components/MyPunishments';
+import Login from './components/Login'; // 确保导入 Login 组件
+
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
@@ -131,6 +142,9 @@ const App = () => {
                     <Routes>
 
                         <Route path="/" element={<Home />} />
+                        
+                        {/* 登录路由 */}
+                        <Route path="/login" element={<Login />} />
 
                         {/* 学生端路由 */}
                         <Route path="/student-dashboard" element={
@@ -195,7 +209,7 @@ const App = () => {
                         path="/punishments"
                         element={
                             <RoleProtectedRoute roles={['Teacher', 'Admin']}>
-                            <PunishmentRecords />
+                                <PunishmentRecords />
                             </RoleProtectedRoute>
                         }
                         />

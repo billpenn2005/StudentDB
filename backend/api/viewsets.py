@@ -224,7 +224,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
                 selected_students=user,
                 is_finalized=False,
                 schedules__day=schedule.day,
-                schedules__period=schedule.period
+                schedules__period=schedule.period,
+                semester=current_semester  # 添加学期过滤
             ).exists()
             if conflict:
                 return Response({'detail': '课程时间与已选课程冲突'}, status=status.HTTP_400_BAD_REQUEST)
@@ -356,8 +357,10 @@ from reportlab.pdfgen import canvas
 
 
 
+from .serializers import UserWithStudentSerializer
+
 class CurrentUserView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserSerializer
+    serializer_class = UserWithStudentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
@@ -407,6 +410,62 @@ class SelectionBatchViewSet(viewsets.ModelViewSet):
         serializer = CourseInstanceSerializer(course_instances, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
+    def selected_courses(self, request, pk=None):
+        """
+        获取给定学生在此批次中的已选课程
+        """
+        try:
+            selection_batch = SelectionBatch.objects.get(pk=pk)
+        except SelectionBatch.DoesNotExist:
+            return Response({'detail': '选课批次不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        user = request.user
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 获取已选课程
+        selected_courses = selection_batch.course_instances.filter(selected_students=user)
+        selected_serializer = CourseInstanceSerializer(selected_courses, many=True)
+        
+        return Response({
+            'selected_courses': selected_serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
+    def available_courses(self, request, pk=None):
+        """
+        获取给定学生在此批次中的可选课程
+        """
+        try:
+            selection_batch = SelectionBatch.objects.get(pk=pk)
+        except SelectionBatch.DoesNotExist:
+            return Response({'detail': '选课批次不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        user = request.user
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 获取可选课程
+        now = timezone.now()
+        available_courses = selection_batch.course_instances.annotate(
+            selected_count=Count('selected_students')
+        ).filter(
+            selection_deadline__gte=now,
+            selected_count__lt=F('capacity'),
+            eligible_classes=student.student_class
+        ).exclude(selected_students=user)
+        
+        available_serializer = CourseInstanceSerializer(available_courses, many=True)
+        
+        return Response({
+            'available_courses': available_serializer.data
+        }, status=status.HTTP_200_OK)
 class S_GradeViewSet(viewsets.ModelViewSet):
     """
     成绩管理的 ViewSet
