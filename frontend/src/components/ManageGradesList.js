@@ -19,6 +19,7 @@ const ManageGradesList = () => {
                     teacher: user.teacher_id
                 }
             });
+            console.log('Courses:', response.data);
             setCourses(response.data);
         } catch (err) {
             setError('无法获取课程列表。');

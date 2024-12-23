@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.js
+
 import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import axiosInstance from '../axiosInstance';
 import { toast } from 'react-toastify';
@@ -14,7 +16,6 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const hasNavigated = useRef(false);
-    const initializeRef = useRef(false);
     const dataFetchedRef = useRef(false);
 
     const fetchUser = useCallback(async () => {
@@ -56,31 +57,32 @@ export const AuthProvider = ({ children }) => {
 
     // 主初始化函数
     useEffect(() => {
-        if (!isAuthenticated || dataFetchedRef.current) return;
-
         const initializeData = async () => {
-            try {
-                setLoading(true);
-                const fetchedUser = await fetchUser();
-                if (fetchedUser) {
-                    await Promise.all([
-                        fetchSelectedCourses(),
-                        fetchCurrentSemester()
-                    ]);
+            if (isAuthenticated && !dataFetchedRef.current) {
+                try {
+                    setLoading(true);
+                    const fetchedUser = await fetchUser();
+                    if (fetchedUser) {
+                        await Promise.all([
+                            fetchSelectedCourses(),
+                            fetchCurrentSemester()
+                        ]);
+                    }
+                    dataFetchedRef.current = true;
+                } catch (error) {
+                    console.error('初始化数据失败:', error);
+                } finally {
+                    setLoading(false);
                 }
-                dataFetchedRef.current = true;
-            } catch (error) {
-                console.error('初始化数据失败:', error);
-            } finally {
+            } else {
+                // 如果未认证，直接结束加载
                 setLoading(false);
+                dataFetchedRef.current = true;
             }
         };
 
         initializeData();
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
-
-
-
 
     const login = async (accessToken, refreshToken) => {
         try {

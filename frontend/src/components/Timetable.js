@@ -52,11 +52,14 @@ const Timetable = () => {
 
       const userGroups = user.groups.map(g => g.trim().toLowerCase());
       let endpoint = '';
-
+      const nowTecher = await axiosInstance.get(`/teachers/?user=${user.id}`);
+      console.log('Now Teacher:', nowTecher);
+      const nowteacher_id = nowTecher.data.results[0].id;
       if (userGroups.includes('teacher')) {
-        endpoint = `/course-instances/?teacher=${user.teacher_id}&semester=${currentSemester.name}`;
+        endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.name}`;
       } else if (userGroups.includes('student')) {
-        endpoint = `/course-instances/?student=${user.student_id}&semester=${currentSemester.name}`;
+        console.log('Student ID:', user.student_id);
+        endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.name}`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
