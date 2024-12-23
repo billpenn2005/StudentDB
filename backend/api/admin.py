@@ -165,7 +165,7 @@ class StudentResource(resources.ModelResource):
     gender = fields.Field(
         column_name='gender',
         attribute='gender',
-        widget=widgets.CharWidget( )
+        widget=widgets.IntegerWidget( )
     )
 
     class Meta:
