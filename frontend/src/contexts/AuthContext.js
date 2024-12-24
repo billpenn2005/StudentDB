@@ -98,7 +98,19 @@ export const AuthProvider = ({ children }) => {
 
         initializeData();
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
-
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setLoading(false);
+            return;
+        }
+        (async () => {
+            if (!dataFetchedRef.current) {
+                dataFetchedRef.current = true;
+                await fetchUser();
+            }
+            setLoading(false);
+        })();
+    }, [isAuthenticated, fetchUser]);
     // 路由导航逻辑
     useEffect(() => {
         if (user && !hasNavigated.current && location.pathname === '/') {

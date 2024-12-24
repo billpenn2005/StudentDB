@@ -51,14 +51,14 @@ const Timetable = () => {
       setLoading(true);
 
       const userGroups = user.groups.map(g => g.trim().toLowerCase());
+      console.log('User Groups:', userGroups);
       let endpoint = '';
-      const nowTecher = await axiosInstance.get(`/teachers/?user=${user.id}`);
-      console.log('Now Teacher:', nowTecher);
-      const nowteacher_id = nowTecher.data.results[0].id;
+      console.log('Student ID:', user.student_id);
       if (userGroups.includes('teacher')) {
+        const nowTecher = await axiosInstance.get(`/teachers/?user=${user.id}`);
+        const nowteacher_id = nowTecher.data.results[0].id;
         endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.name}`;
       } else if (userGroups.includes('student')) {
-        console.log('Student ID:', user.student_id);
         endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.name}`;
       } else {
         // 其他角色可自行处理
