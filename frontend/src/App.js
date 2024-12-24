@@ -33,6 +33,7 @@ import ChangePassword from './components/ChangePassword';
 import PunishmentRecords from './components/PunishmentRecords';
 import MyPunishments from './components/MyPunishments';
 import Login from './components/Login'; // 确保导入 Login 组件
+import ManageGradesList from './components/ManageGradesList';
 
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
@@ -108,7 +109,7 @@ const App = () => {
                                 </Menu.Item>
 
                                 <Menu.Item key="13">
-                                    <Link to="/manage-grades/1">管理成绩</Link>
+                                    <Link to="/manage-grades-list">管理成绩</Link>
                                 </Menu.Item>
 
                                 {/* 新增奖惩管理入口 */}
@@ -198,6 +199,11 @@ const App = () => {
                         <Route path="/enter-grades" element={
                             <RoleProtectedRoute roles={['Teacher']}>
                                 <EnterGrades />
+                            </RoleProtectedRoute>
+                        } />
+                        <Route path="/manage-grades-list" element={
+                            <RoleProtectedRoute roles={['Teacher']}>
+                                <ManageGradesList />
                             </RoleProtectedRoute>
                         } />
                         <Route path="/manage-grades/:courseInstanceId" element={

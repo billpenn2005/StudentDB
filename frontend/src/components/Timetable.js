@@ -56,8 +56,9 @@ const Timetable = () => {
       console.log('Student ID:', user.student_id);
       if (userGroups.includes('teacher')) {
         const nowTecher = await axiosInstance.get(`/teachers/?user=${user.id}`);
+        console.log('Teacher:', nowTecher.data.results[0]);
         const nowteacher_id = nowTecher.data.results[0].id;
-        endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.name}`;
+        endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.id}`;
       } else if (userGroups.includes('student')) {
         endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.name}`;
       } else {

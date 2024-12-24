@@ -9,7 +9,7 @@ const { Title } = Typography;
 
 const ManageGrades = () => {
     const { courseInstanceId } = useParams();
-    const { user } = useContext(AuthContext);
+    const { user, currentSemester } = useContext(AuthContext);
 
     const [loading, setLoading] = useState(true);
     const [courseInstance, setCourseInstance] = useState(null);
@@ -22,6 +22,12 @@ const ManageGrades = () => {
             try {
                 // Fetch course instance details
                 const courseRes = await axiosInstance.get(`course-instances/${courseInstanceId}/`);
+                // 如果课程不属于当前学期，提示并中断
+                if (courseRes.data.semester?.id !== currentSemester?.id) {
+                  toast.error('该课程不属于当前学期，无法录入成绩');
+                  setLoading(false);
+                  return;
+                }
                 setCourseInstance(courseRes.data);
 
                 // Fetch enrolled students
@@ -73,8 +79,9 @@ const ManageGrades = () => {
             }
         };
 
-        fetchData();
-    }, [courseInstanceId, weightsForm]);
+        if (currentSemester) {
+            fetchData();
+          }    }, [courseInstanceId, weightsForm]);
 
     const handleSetWeights = async (values) => {
         const { daily_weight, final_weight } = values;
