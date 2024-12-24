@@ -11,6 +11,7 @@ const Logout = () => {
 
     const handleLogout = () => {
         logout();
+        window.location.reload();
     };
 
     return (

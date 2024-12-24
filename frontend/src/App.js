@@ -34,7 +34,8 @@ import PunishmentRecords from './components/PunishmentRecords';
 import MyPunishments from './components/MyPunishments';
 import Login from './components/Login'; // 确保导入 Login 组件
 import ManageGradesList from './components/ManageGradesList';
-
+import MyRewards from './components/MyRewards';
+import RewardsRecords from './components/RewardsRecords';
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
@@ -84,6 +85,9 @@ const App = () => {
                                 <Menu.Item key="16" icon={<ProfileOutlined />}>
                                     <Link to="/my-punishments">我的惩罚记录</Link>
                                 </Menu.Item>
+                                <Menu.Item key="17" icon={<ProfileOutlined />}>
+                                    <Link to="/my-rewards">我的奖励记录</Link>
+                                </Menu.Item>
                                 <SubMenu key="sub1" icon={<BookOutlined />} title="我的选课">
                                     <Menu.Item key="4">
                                         <Link to="/my-courses">已选课程</Link>
@@ -114,7 +118,10 @@ const App = () => {
 
                                 {/* 新增奖惩管理入口 */}
                                 <Menu.Item key="99">
-                                    <Link to="/punishments">奖惩管理</Link>
+                                    <Link to="/punishments">处分管理</Link>
+                                </Menu.Item>        
+                                <Menu.Item key="100">
+                                    <Link to="/rewards">奖励管理</Link>
                                 </Menu.Item>
                                 <Menu.Item key="8">
                                     <Link to="/timetable">课表</Link>
@@ -184,6 +191,11 @@ const App = () => {
                                 <MyPunishments />
                             </RoleProtectedRoute>
                         } />
+                        <Route path="/my-rewards" element={
+                            <RoleProtectedRoute roles={['Student']}>
+                                <MyRewards />
+                            </RoleProtectedRoute>
+                        } />
 
                         {/* 教师端路由 */}
                         <Route path="/teacher-dashboard" element={
@@ -216,6 +228,13 @@ const App = () => {
                         element={
                             <RoleProtectedRoute roles={['Teacher', 'Admin']}>
                                 <PunishmentRecords />
+                            </RoleProtectedRoute>
+                        }   />
+                        <Route
+                        path="/rewards"
+                        element={
+                            <RoleProtectedRoute roles={['Teacher', 'Admin']}>
+                                <RewardsRecords />
                             </RoleProtectedRoute>
                         }
                         />

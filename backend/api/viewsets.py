@@ -813,13 +813,14 @@ class RewardRecordViewSet(viewsets.ModelViewSet):
     """
     queryset = RewardRecord.objects.all()
     serializer_class = RewardRecordSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrTeacher]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return RewardRecordCreateSerializer
         return RewardRecordSerializer  # 正确返回读取序列化器
 
+    
     def get_queryset(self):
         user = self.request.user
         # 根据需求限制教师只能看自己部门的学生，或者其他逻辑
