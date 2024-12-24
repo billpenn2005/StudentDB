@@ -16,7 +16,6 @@ export const AuthProvider = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const hasNavigated = useRef(false);
-    const dataFetchedRef = useRef(false);
 
     const fetchUser = useCallback(async () => {
         try {
@@ -76,41 +75,30 @@ export const AuthProvider = ({ children }) => {
 
     // 主初始化函数
     useEffect(() => {
-        if (!isAuthenticated || dataFetchedRef.current) return;
-
         const initializeData = async () => {
-            try {
-                setLoading(true);
-                const fetchedUser = await fetchUser();
-                if (fetchedUser) {
-                    await Promise.all([
-                        fetchSelectedCourses(),
-                        fetchCurrentSemester()
-                    ]);
+            if (isAuthenticated) {
+                try {
+                    setLoading(true);
+                    const fetchedUser = await fetchUser();
+                    if (fetchedUser) {
+                        await Promise.all([
+                            fetchSelectedCourses(),
+                            fetchCurrentSemester()
+                        ]);
+                    }
+                } catch (error) {
+                    console.error('初始化数据失败:', error);
+                } finally {
+                    setLoading(false);
                 }
-                dataFetchedRef.current = true;
-            } catch (error) {
-                console.error('初始化数据失败:', error);
-            } finally {
+            } else {
                 setLoading(false);
             }
         };
 
         initializeData();
     }, [isAuthenticated, fetchUser, fetchSelectedCourses, fetchCurrentSemester]);
-    useEffect(() => {
-        if (!isAuthenticated) {
-            setLoading(false);
-            return;
-        }
-        (async () => {
-            if (!dataFetchedRef.current) {
-                dataFetchedRef.current = true;
-                await fetchUser();
-            }
-            setLoading(false);
-        })();
-    }, [isAuthenticated, fetchUser]);
+
     // 路由导航逻辑
     useEffect(() => {
         if (user && !hasNavigated.current && location.pathname === '/') {
@@ -126,14 +114,19 @@ export const AuthProvider = ({ children }) => {
         }
     }, [user, navigate, location.pathname]);
 
-    const login = async (accessToken, refreshToken) => {
+    async function login(accessToken, refreshToken) {
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+
         try {
             setLoading(true);
+            // 切换用户前先重置状态引用
+            hasNavigated.current = false;
             localStorage.setItem('access_token', accessToken);
             localStorage.setItem('refresh_token', refreshToken);
             setIsAuthenticated(true);
-
-            const fetchedUser = await fetchUser();
+        
+            const fetchedUser = await fetchUser(); // 确保真正拿到新用户
+            console.log('Fetched User:', fetchedUser);
             if (fetchedUser) {
                 const userGroups = fetchedUser.groups || [];
                 if (userGroups.includes('Student')) {
@@ -148,16 +141,18 @@ export const AuthProvider = ({ children }) => {
             return false;
         } catch (error) {
             console.error('登录失败:', error);
-            setIsAuthenticated(false);
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+            // 处理错误与清理逻辑
             return false;
         } finally {
             setLoading(false);
         }
-    };
+    }
 
     const logout = () => {
+        // 重置相关状态
+        hasNavigated.current = false;
+        delete axiosInstance.defaults.headers.common['Authorization'];
+
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         setIsAuthenticated(false);
@@ -178,7 +173,7 @@ export const AuthProvider = ({ children }) => {
             setUser,
             selectedCourses,
             fetchSelectedCourses,
-            fetchBatchBasedSelectedCourses, // 确保这里导出
+            fetchBatchBasedSelectedCourses,
             fetchUser,
             currentSemester,
             fetchCurrentSemester

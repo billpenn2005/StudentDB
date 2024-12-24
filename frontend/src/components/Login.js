@@ -20,7 +20,7 @@ const Login = () => {
         setLoading(true);
         try {
             const response = await axiosInstance.post('token/', { username, password });
-            login(response.data.access, response.data.refresh);
+            await login(response.data.access, response.data.refresh);
             setUsername(username);
             toast.success('登录成功');
             // 导航由 AuthContext 处理
