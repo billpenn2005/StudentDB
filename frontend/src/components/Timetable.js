@@ -58,9 +58,9 @@ const Timetable = () => {
         const nowTecher = await axiosInstance.get(`/teachers/?user=${user.id}`);
         console.log('Teacher:', nowTecher.data.results[0]);
         const nowteacher_id = nowTecher.data.results[0].id;
-        endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.id}`;
+        endpoint = `course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.id}/`;
       } else if (userGroups.includes('student')) {
-        endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.id}`;
+        endpoint = `course-instances/list_selected_courses_by_current_semester`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
@@ -68,6 +68,7 @@ const Timetable = () => {
 
       const response = await axiosInstance.get(endpoint);
       const courses = response.data.results || response.data; // 若无分页可直接用 data
+      console.log('All Courses:', courses);
 
       setAllCourses(courses);
     } catch (error) {

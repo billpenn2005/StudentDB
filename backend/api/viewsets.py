@@ -343,7 +343,8 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
             student = Student.objects.get(user=user)
         except Student.DoesNotExist:
             return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        #semester = request.query_params.get('semester', None)
+
         selected_courses = CourseInstance.objects.filter(
             selected_students=user,
             #is_finalized=False  # 仅展示已最终化的选课
@@ -352,7 +353,26 @@ class CourseInstanceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(selected_courses, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsStudentUser])
+    def list_selected_courses_by_current_semester(self, request):
+        """
+        API 9: 展示给定学生的本学期所有已选课程
+        """
+        user = request.user
+        try:
+            student = Student.objects.get(user=user)
+        except Student.DoesNotExist:
+            return Response({'detail': '学生信息不存在'}, status=status.HTTP_400_BAD_REQUEST)
+        #semester = request.query_params.get('semester', None)
 
+        selected_courses = CourseInstance.objects.filter(
+            selected_students=user,
+            semester = Semester.objects.get(is_current=True),
+            #is_finalized=False  # 仅展示已最终化的选课
+        )
+
+        serializer = self.get_serializer(selected_courses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 # class CourseSelectionCreateView(generics.CreateAPIView):
 
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
