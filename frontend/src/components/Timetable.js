@@ -60,7 +60,7 @@ const Timetable = () => {
         const nowteacher_id = nowTecher.data.results[0].id;
         endpoint = `/course-instances/?teacher=${nowteacher_id}&semester=${currentSemester.id}`;
       } else if (userGroups.includes('student')) {
-        endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.name}`;
+        endpoint = `course-instances/list_selected_courses/?semester=${currentSemester.id}`;
       } else {
         // 其他角色可自行处理
         endpoint = '/course-instances/';
