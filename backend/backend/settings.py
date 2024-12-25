@@ -31,7 +31,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'drf_yasg2',
     'import_export',
-
+    'django_extensions',
     # 你的应用
     'api',
 

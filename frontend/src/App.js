@@ -70,9 +70,6 @@ const App = () => {
 
                         {isStudent && (
                             <>
-                                <Menu.Item key="2" icon={<UserOutlined />}>
-                                    <Link to="/student-dashboard">学生仪表盘</Link>
-                                </Menu.Item>
                                 <Menu.Item key="3" icon={<ProfileOutlined />}>
                                     <Link to="/student-profile">学生资料</Link>
                                 </Menu.Item>
@@ -155,11 +152,6 @@ const App = () => {
                         <Route path="/login" element={<Login />} />
 
                         {/* 学生端路由 */}
-                        <Route path="/student-dashboard" element={
-                            <RoleProtectedRoute roles={['Student']}>
-                                <StudentDashboard />
-                            </RoleProtectedRoute>
-                        } />
                         <Route path="/student-profile" element={
                             <RoleProtectedRoute roles={['Student']}>
                                 <StudentProfile />

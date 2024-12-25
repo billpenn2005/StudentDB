@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
         if (user && !hasNavigated.current && location.pathname === '/') {
             const userGroups = user.groups || [];
             if (userGroups.includes('Student')) {
-                navigate('/student-dashboard');
+                navigate('/');
             } else if (userGroups.includes('Teacher')) {
                 navigate('/teacher-dashboard');
             } else {
